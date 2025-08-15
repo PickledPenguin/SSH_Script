@@ -1,14 +1,3 @@
-import json
-import os
-
-JSON_FILE = "servers.json"
-
-def load_servers():
-    if os.path.exists(JSON_FILE):
-        with open(JSON_FILE, "r") as f:
-            return json.load(f)
-    return []
-
 def save_servers(servers):
     with open(JSON_FILE, "w") as f:
         json.dump(servers, f, indent=4)
