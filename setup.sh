@@ -1,75 +1,48 @@
-#!/bin/bash
-set -e
+if [ -f .env ]; then
+        export $(grep -v '^#' .env | xargs)
+fi
 
-echo "[*] Installing/Upgrading Python dependency: python-dotenv..."
-apt install --upgrade python3-dotenv
+# Check if BW_DOMAIN is set
+if [ -z "$BW_DOMAIN" ]; then
+        echo "[!] BW_DOMAIN is not set in .env"
+        exit 1
+fi
 
-# Function to check command existence
-check_cmd() {
-    command -v "$1" >/dev/null 2>&1
-}
+# Add https:// if BW_DOMAIN does not start with http:// or https://
+if [[ "$BW_DOMAIN" =~ ^https?:// ]]; then
+        SERVER_URL="$BW_DOMAIN"
+else
+        SERVER_URL="https://$BW_DOMAIN"
+fi
 
-# Detect OS type
-OS_TYPE=$(uname -s)
+echo "[*] Configuring Bitwarden server to $SERVER_URL"
 
-# Install Bitwarden CLI if missing
-if ! check_cmd bw; then
-    echo "[*] Bitwarden CLI (bw) not found. Installing..."
+# Install expect if missing
+if ! check_cmd expect; then
+    echo "[*] expect not found. Installing..."
     if [[ "$OS_TYPE" == "Linux" ]]; then
-        # Check for package manager
         if check_cmd apt; then
-            sudo apt update && sudo apt install -y snapd
-            sudo snap install bw
-        elif check_cmd dnf; then
-            echo "[!] bw is not available via dnf/yum. Please install manually from:"
-            echo "    https://bitwarden.com/help/cli/"
+            sudo apt update && sudo apt install -y expect
         elif check_cmd yum; then
-            echo "[!] bw is not available via dnf/yum. Please install manually from:"
-            echo "    https://bitwarden.com/help/cli/"
+            sudo yum install -y expect
+        elif check_cmd dnf; then
+            sudo dnf install -y expect
         else
-            echo "[!] Unknown Linux distribution. Install Bitwarden CLI manually from:"
-            echo "    https://bitwarden.com/help/cli/"
+            echo "[!] Unknown Linux distribution. Install expect manually."
         fi
     elif [[ "$OS_TYPE" == "Darwin" ]]; then
         if check_cmd brew; then
-            brew install bitwarden-cli
+            brew install expect
         else
             echo "[!] Homebrew not found. Install it from https://brew.sh/ then run:"
-            echo "    brew install bitwarden-cli"
+            echo "    brew install expect"
         fi
     else
-        echo "[!] Unsupported OS. Please install Bitwarden CLI manually from:"
-        echo "    https://bitwarden.com/help/cli/"
+        echo "[!] Unsupported OS. Please install expect manually."
     fi
 else
-    echo "[*] Bitwarden CLI already installed."
+    echo "[*] expect already installed."
 fi
 
-# Install sshpass if missing
-if ! check_cmd sshpass; then
-    echo "[*] sshpass not found. Installing..."
-    if [[ "$OS_TYPE" == "Linux" ]]; then
-        if check_cmd apt; then
-            sudo apt update && sudo apt install -y sshpass
-        elif check_cmd dnf; then
-            sudo dnf install -y sshpass
-        elif check_cmd yum; then
-            sudo yum install -y sshpass
-        else
-            echo "[!] Unknown Linux distribution. Install sshpass manually."
-        fi
-    elif [[ "$OS_TYPE" == "Darwin" ]]; then
-        if check_cmd brew; then
-            brew install hudochenkov/sshpass/sshpass
-        else
-            echo "[!] Homebrew not found. Install it from https://brew.sh/ then run:"
-            echo "    brew install hudochenkov/sshpass/sshpass"
-        fi
-    else
-        echo "[!] Unsupported OS. Please install sshpass manually."
-    fi
-else
-    echo "[*] sshpass already installed."
-fi
 
 echo "[*] All dependencies installed successfully."
