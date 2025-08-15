@@ -23,7 +23,6 @@ This project provides two main utilities for managing SSH server connections, in
 ├── ssh.py            # Python script to connect to servers (with jump server and Bitwarden support)
 ├── servers.json      # JSON file storing all server entries
 ├── setup.sh          # Setup script to install dependencies and CLI tools
-├── requirements.txt  # Python dependencies list
 └── .env              # Stores Bitwarden credentials & jump server entry name
 ```
 
@@ -53,7 +52,7 @@ JUMP_SERVER_ENTRY_NAME=your_jump_server_entry
 
 ### 3.) Run Setup Script
 The `setup.sh` script installs:
-- Python dependencies from `requirements.txt`
+- Python dependencies
 - Bitwarden CLI (`bw`)
 - `sshpass` (for non-key-based logins)
 
@@ -65,7 +64,7 @@ chmod +x setup.sh
 
 ---
 
-## 📜 Adding Servers
+## Adding Servers
 
 To add a new server entry:
 ```bash
