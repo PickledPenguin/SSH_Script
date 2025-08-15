@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-echo "[*] Installing Python dependency: python-dotenv..."
-pip3 install --upgrade python-dotenv
+echo "[*] Installing/Upgrading Python dependency: python-dotenv..."
+apt install --upgrade python3-dotenv
 
 # Function to check command existence
 check_cmd() {
