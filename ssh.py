@@ -21,15 +21,22 @@ Usage:
 """
 
 import os
-import sys
 import json
 import subprocess
 import argparse
 import getpass
 from dotenv import load_dotenv
+from pathlib import Path
 
-SERVERS_FILE = "servers.json"
-bw_cache = {}  # cache for bitwarden fetch results
+# Load environment variables
+load_dotenv()
+BW_PASSWORD = os.getenv("BW_PASSWORD")
+BW_CLIENTID = os.getenv("BW_CLIENTID")
+BW_CLIENTSECRET = os.getenv("BW_CLIENTSECRET")
+BW_DOMAIN = os.getenv("BW_DOMAIN")
+JUMP_ENTRY = os.getenv("JUMP_ENTRY")  # Jump server entry name from servers.json
+
+SERVERS_FILE = Path("servers.json")
 
 
 # ------------------- Utility Functions -------------------
@@ -48,9 +55,8 @@ def find_entry(servers, name):
             return s
     return None
 
-
-def bitwarden_fetch(item_name):
-    """Fetch username & password from Bitwarden CLI (cached)."""
+def bitwarden_fetch(item_name, session_key):
+    """Fetch username and password from Bitwarden CLI (cached)."""
     if item_name in bw_cache:
         return bw_cache[item_name]
 
@@ -88,6 +94,41 @@ def ensure_bitwarden_session():
     return unlock.stdout.strip()
 
 
+def run_expect_scp(dest_user, dest_ip, dest_pass, local_file, remote_dest, jump_server=None):
+    """Automates scp password entry using expect."""
+    expect_script = f'''
+    spawn scp {'-o ProxyJump=' + jump_server if jump_server else ''} {local_file} {dest_user}@{dest_ip}:{remote_dest}
+    expect {{
+        "*yes/no*" {{
+            send "yes\\r"
+            exp_continue
+        }}
+        "*assword:*" {{
+            send "{dest_pass}\\r"
+        }}
+    }}
+    interact
+    '''
+    subprocess.run(["expect", "-c", expect_script], check=True)
+
+def run_expect_ssh(dest_user, dest_ip, dest_pass, jump_server=None):
+    """Automates ssh password entry using expect."""
+    expect_script = f'''
+    spawn ssh {'-o ProxyJump=' + jump_server if jump_server else ''} {dest_user}@{dest_ip}
+    expect {{
+        "*yes/no*" {{
+            send "yes\\r"
+            exp_continue
+        }}
+        "*assword:*" {{
+            send "{dest_pass}\\r"
+        }}
+    }}
+    interact
+    '''
+    subprocess.run(["expect", "-c", expect_script], check=True)
+
+
 # ------------------- Main Script -------------------
 
 def main():
@@ -101,107 +142,74 @@ def main():
                         help="Transfer file before connecting (used with -jc or -c)")
     args = parser.parse_args()
 
+    # Get server information from servers.json
     servers = load_servers()
+    
+    use_jump = args.jc or args.cj
+    entry_name = args.entry
+    if entry_name not in servers:
+        print(f"[!] Entry '{entry_name}' not found in servers.json")
+        return
+    
+    # Get target server
+    target_server = servers[entry_name]
 
-    # Determine target entry & jump usage
-    if args.connect:
-        target_name = args.connect
-        use_jump = False
-    elif args.jumpconnect or args.connectjump:
-        target_name = args.jumpconnect or args.connectjump
-        use_jump = True
-    else:
-        print("[ERROR] Must specify -c, -jc, or -cj")
-        sys.exit(1)
-
-    target_entry = find_entry(servers, target_name)
-    if not target_entry:
-        print(f"[ERROR] No server entry found for '{target_name}'")
-        sys.exit(1)
-
-    jump_entry = None
+    # Get jump server information
+    jump_server_data = None
     if use_jump:
-        jump_name = os.getenv("JUMP_SERVER_ENTRY")
-        if not jump_name:
-            print("[ERROR] No JUMP_SERVER_ENTRY in .env")
-            sys.exit(1)
-        jump_entry = find_entry(servers, jump_name)
-        if not jump_entry:
-            print(f"[ERROR] Jump server entry '{jump_name}' not found in {SERVERS_FILE}")
-            sys.exit(1)
+        if not JUMP_ENTRY or JUMP_ENTRY not in servers:
+            print("[!] Jump server entry missing or invalid in .env or servers.json")
+            return
+        jump_server_data = servers[JUMP_ENTRY]
 
-    # Start Bitwarden session if needed
-    session_key = None
-    if ("bitwarden-name" in target_entry) or (jump_entry and "bitwarden-name" in jump_entry):
-        session_key = ensure_bitwarden_session()
+    # Jump server credentials (username comes from json, password skipped because key auth)
+    jump_user = None
+    jump_ip = None
+    if jump_server_data:
+        jump_user = jump_server_data.get("ssh-username") or jump_server_data.get("user")
+        jump_ip = jump_server_data["ip"]
 
-    # Fetch target server credentials
-    if "ssh-username" in target_entry:
-        dest_user = target_entry["ssh-username"]
-    elif "bitwarden-name" in target_entry:
-        u, _ = bitwarden_fetch(target_entry["bitwarden-name"])
-        dest_user = u or input(f"Username for {target_name}: ")
-    else:
-        dest_user = input(f"Username for {target_name}: ")
+    # Get session key from logging in / unlocking bitwarden
+    session_key = ensure_bitwarden_session()
+    
+    # Get target server credentials
+    dest_user = target_server.get("ssh-username")
+    dest_pass = None
+    if "bitwarden-name" in target_server and session_key:
+        bw_user, bw_pass = bitwarden_fetch(session_key, target_server["bitwarden-name"])
+        if bw_user:
+            dest_user = bw_user
+        if bw_pass:
+            dest_pass = bw_pass
+    # If we don't have a password from bitwarden, manually enter it
+    if not dest_pass:
+        dest_pass = getpass.getpass(f"Enter SSH password for {dest_user}@{target_server['ip']}: ")
 
-    if "bitwarden-name" in target_entry:
-        _, p = bitwarden_fetch(target_entry["bitwarden-name"])
-        dest_pass = p or getpass.getpass(f"Password for {dest_user}@{target_entry['ssh-ip']}: ")
-    else:
-        dest_pass = getpass.getpass(f"Password for {dest_user}@{target_entry['ssh-ip']}: ")
-
-    # Fetch jump server credentials if applicable
-    if jump_entry:
-        if "ssh-username" in jump_entry:
-            jump_user = jump_entry["ssh-username"]
-        elif "bitwarden-name" in jump_entry:
-            u, _ = bitwarden_fetch(jump_entry["bitwarden-name"])
-            jump_user = u or input(f"Username for jump server {jump_entry['entry-name']}: ")
-        else:
-            jump_user = input(f"Username for jump server {jump_entry['entry-name']}: ")
-
-        if "bitwarden-name" in jump_entry:
-            _, p = bitwarden_fetch(jump_entry["bitwarden-name"])
-            jump_pass = p or getpass.getpass(f"Password for {jump_user}@{jump_entry['ssh-ip']}: ")
-        else:
-            jump_pass = getpass.getpass(f"Password for {jump_user}@{jump_entry['ssh-ip']}: ")
-
-    # ------------------- Execute action -------------------
-    if args.file:
-        local_file, remote_path = args.file
-        print(f"[*] Transferring {local_file} to {target_name} via jump server...")
-        subprocess.run([
-            "sshpass", "-p", dest_pass,
-            "scp", "-o", f"ProxyJump={jump_user}@{jump_entry['ssh-ip']}",
-            local_file, f"{dest_user}@{target_entry['ssh-ip']}:{remote_path}"
-        ], check=True)
-
-        print(f"[*] Now connecting to {target_name} via jump server...")
-        subprocess.run([
-            "sshpass", "-p", dest_pass,
-            "ssh", "-o", f"ProxyJump={jump_user}@{jump_entry['ssh-ip']}",
-            f"{dest_user}@{target_entry['ssh-ip']}"
-        ], check=True)
-
-    else:
-        if use_jump:
-            print(f"[*] Connecting to {target_name} via jump server {jump_entry['entry-name']}...")
-            subprocess.run([
-                "sshpass", "-p", dest_pass,
-                "ssh", "-o", f"ProxyJump={jump_user}@{jump_entry['ssh-ip']}",
-                f"{dest_user}@{target_entry['ssh-ip']}"
-            ], check=True)
-        else:
-            print(f"[*] Connecting directly to {target_name}...")
-            subprocess.run([
-                "sshpass", "-p", dest_pass,
-                "ssh", f"{dest_user}@{target_entry['ssh-ip']}"
-            ], check=True)
 
     # Lock Bitwarden if it was used
     if session_key:
         print("[*] Locking Bitwarden...")
         subprocess.run(["bw", "lock"], check=True)
+
+
+    # ------------------- Execute action -------------------
+    if args.f:
+        local_file, remote_dest = args.f
+        print("[*] File transfer requested.")
+
+        if use_jump:
+            print(f"[*] Transferring file to {entry_name} via jump server {jump_ip}...")
+            run_expect_scp(dest_user, target_server["ip"], dest_pass, local_file, remote_dest,
+                           jump_server=f"{jump_user}@{jump_ip}")
+        else:
+            print(f"[*] Transferring file directly to {entry_name}...")
+            run_expect_scp(dest_user, target_server["ip"], dest_pass, local_file, remote_dest)
+
+    print("[*] Opening SSH session...")
+    if use_jump:
+        run_expect_ssh(dest_user, target_server["ip"], dest_pass, jump_server=f"{jump_user}@{jump_ip}")
+    else:
+        run_expect_ssh(dest_user, target_server["ip"], dest_pass)
 
 
 if __name__ == "__main__":
