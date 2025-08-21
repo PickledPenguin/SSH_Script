@@ -6,6 +6,28 @@ import sys
 
 SERVERS_FILE = "servers.json"
 
+def print_servers(servers: list[dict]) -> None:
+    """
+    Print server entries in a compact table-like format.
+    Shows only: entry-name, server-ip, bitwarden-name, ssh-username
+    """
+    if not servers:
+        print("[-] No servers found.")
+        return
+
+    # Header
+    print(f"{'Name':20} {'IP':20} {'User':15} {'Bitwarden':20}")
+    print("-" * 75)
+
+    # Rows
+    for srv in servers:
+        name = srv.get("entry-name", "-")
+        ip = srv.get("server-ip", "-")
+        user = srv.get("ssh-username", "-")
+        bw = srv.get("bitwarden-name", "-")
+        print(f"{name:20} {ip:20} {user:15} {bw:20}")
+
+
 # ---------- data utils ----------
 
 def load_servers():
