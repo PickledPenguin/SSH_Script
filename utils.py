@@ -1,7 +1,10 @@
 import json
 import os
+import re
 
-# ======= Colored Status Printing =======
+SERVERS_FILE = "servers.json"
+
+# ---------- Colored Status Printing ----------
 RESET = "\033[0m"
 GREEN = "\033[92m"
 YELLOW = "\033[93m"
@@ -32,7 +35,7 @@ def print_status(message, status="info"):
     symbol = symbols.get(status, "[*]")
     print(f"{color}{symbol} {message}{RESET}")
 
-# ======= JSON Helpers =======
+# ---------- JSON Helpers ----------
 def load_json(file_path):
     """
     Load JSON data from a file. Returns {} if file does not exist.
@@ -54,17 +57,36 @@ def save_json(file_path, data):
         json.dump(data, f, indent=4)
     print_status(f"Saved data to {file_path}", "success")
 
-# ======= Password / String Helpers =======
-def sanitize_password(password):
+
+def load_servers():
+    """
+    Performs load_json on SERVERS_FILE
+    """
+    servers = load_json(SERVERS_FILE)
+    if servers == {}:
+        return None
+    return servers
+
+def save_servers(data):
+    """
+    Saves data to SERVERS_FILE
+    """
+    save_json(SERVERS_FILE, data)
+
+def load_entry(identifier):
+    return [s.get(identifier, "") for s in load_servers() if s.get(identifier)]
+
+# ---------- Password / String Helpers ----------
+def sanitize(input_str):
     """
     Escape characters in a password that might break shell commands (expect, etc).
     """
-    if password is None:
+    if input_str is None:
         return ""
     # Escape $, `, ", \ and backslashes
-    for char in ['$', '`', '"', '\\']:
-        password = password.replace(char, f"\\{char}")
-    return password
+    for char in ['$', '`', '"', '\\', '[', ']', '{', '}', ';', '\n', '\r']:
+        input_str = input_str.replace(char, f"\\{char}")
+    return input_str
 
 def strip_http_prefix(url):
     """
@@ -76,7 +98,16 @@ def strip_http_prefix(url):
         return url[len("https://"):]
     return url
 
-# ======= Other Utilities =======
+def strip_suffix(input_str, suffix):
+    """
+    Remove a given suffix from a string if present
+    """
+    if input_str.endswith(suffix):
+        return input_str[:-len(suffix)]
+    return input_str
+
+
+# ---------- Other Utilities ----------
 def prompt_yes_no(question, default="no"):
     """
     Ask a yes/no question in terminal.
@@ -89,9 +120,9 @@ def prompt_yes_no(question, default="no"):
         choice = input(f"{question}{default_prompt}").strip().lower()
         if not choice:
             choice = default.lower()
-        if choice in yes:
+        if choice in "yes":
             return True
-        elif choice in no:
+        elif choice in "no":
             return False
         else:
             print_status("Please respond with yes or no (y/n).", "prompt")
