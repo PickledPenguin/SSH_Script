@@ -8,24 +8,39 @@ SERVERS_FILE = "servers.json"
 
 def print_servers(servers: list[dict]) -> None:
     """
-    Print server entries in a compact table-like format.
+    Print server entries in a compact, auto-formatted table.
     Shows only: entry-name, server-ip, bitwarden-name, ssh-username
     """
     if not servers:
         print("[-] No servers found.")
         return
 
-    # Header
-    print(f"{'Name':20} {'IP':20} {'User':15} {'Bitwarden':20}")
-    print("-" * 75)
-
-    # Rows
+    # Extract rows with safe defaults
+    rows = []
     for srv in servers:
-        name = srv.get("entry-name", "-")
-        ip = srv.get("server-ip", "-")
-        user = srv.get("ssh-username", "-")
-        bw = srv.get("bitwarden-name", "-")
-        print(f"{name:20} {ip:20} {user:15} {bw:20}")
+        rows.append([
+            str(srv.get("entry-name") or "-"),
+            str(srv.get("server-ip") or "-"),
+            str(srv.get("ssh-username") or "-"),
+            str(srv.get("bitwarden-name") or "-"),
+        ])
+
+    headers = ["Name", "IP", "User", "Bitwarden"]
+
+    # Compute column widths
+    cols = list(zip(*([headers] + rows)))
+    col_widths = [max(len(str(item)) for item in col) + 2 for col in cols]
+
+    # Format string based on column widths
+    fmt = "".join("{:<" + str(width) + "}" for width in col_widths)
+
+    # Print header
+    print(fmt.format(*headers))
+    print("-" * (sum(col_widths)))
+
+    # Print rows
+    for row in rows:
+        print(fmt.format(*row))
 
 
 # ---------- data utils ----------
