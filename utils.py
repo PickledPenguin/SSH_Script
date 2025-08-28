@@ -1,9 +1,9 @@
 import json
 import os
 import re
+from dotenv import dotenv_values
 
-SERVERS_FILE = "servers.json"
-ENV_PATH = "./.env"
+ENV_PATH = ""
 
 # ---------- Colored Status Printing ----------
 RESET = "\033[0m"
@@ -13,28 +13,41 @@ RED = "\033[91m"
 BLUE = "\033[94m"
 MAGENTA = "\033[95m"
 
+colors = {
+    "success": GREEN,
+    "info": YELLOW,
+    "error": RED,
+    "confirm": BLUE,
+    "prompt": MAGENTA
+}
+symbols = {
+    "success": "[+]",
+    "info": "[*]",
+    "error": "[!]",
+    "confirm": "[#]",
+    "prompt": "[?]"
+}
+
 def print_status(message, status="info"):
     """
     Print a colored status message.
     status: "success", "info", "error", "debug", "prompt"
     """
-    colors = {
-        "success": GREEN,
-        "info": YELLOW,
-        "error": RED,
-        "debug": BLUE,
-        "prompt": MAGENTA
-    }
-    symbols = {
-        "success": "[+]",
-        "info": "[*]",
-        "error": "[!]",
-        "debug": "[#]",
-        "prompt": "[?]"
-    }
     color = colors.get(status, YELLOW)
     symbol = symbols.get(status, "[*]")
     print(f"{color}{symbol} {message}{RESET}")
+
+# ---------- ENV Helpers ----------
+
+def source_env_dict(env_path) -> dict:
+
+    env_vars = dotenv_values(env_path)
+
+    for key, value in env_vars.items():
+        if value is not None:
+            os.environ[key] = value
+
+    return dict(os.environ)
 
 # ---------- JSON Helpers ----------
 def load_json(file_path):
@@ -56,88 +69,42 @@ def save_json(file_path, data):
     """
     with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
-    print_status(f"Saved data to {file_path}", "success")
 
-
-def load_servers():
+def load_servers(servers_file):
     """
-    Performs load_json on SERVERS_FILE
+    Performs load_json on servers_file
     """
-    servers = load_json(SERVERS_FILE)
+    servers = load_json(servers_file)
     if servers == {}:
         return None
     return servers
 
-def save_servers(data):
+def save_servers(servers_file, data):
     """
-    Saves data to SERVERS_FILE
+    Saves data to servers_file
     """
-    save_json(SERVERS_FILE, data)
+    save_json(servers_file, data)
 
 def load_entry(identifier):
     return [s.get(identifier, "") for s in load_servers() if s.get(identifier)]
 
+def load_server_names(servers_file, identifier):
+    servers = load_servers(servers_file)
+    return [srv.get(identifier, "") for srv in servers if identifier in srv]
+
 # ---------- Password / String Helpers ----------
-def sanitize(input_str, prefix="\\"):
+def sanitize(input_str):
     """
     Escape characters in a password that might break shell commands (expect, etc).
     """
     if input_str is None:
         return ""
-    # Escape $, `, ", \ and backslashes
-    for char in ['$', '`', '"', '\\', '[', ']', '{', '}', ';', '\n', '\r']:
-        input_str = input_str.replace(char, f"{prefix}{char}")
+    # Escape $, `, ", etc.
+    for char in ['$', '`', '"', '[', ']', '{', '}', ';', '\n', '\r']:
+        pattern = rf'(?<!\\){re.escape(char)}'
+        replacement = rf'\{char}'
+        input_str = re.sub(pattern, replacement, input_str)
     return input_str
-
-import re
-from utils import sanitize_password  # assuming sanitize_password exists in utils.py
-
-def sanitize_env_quotes(env_path: str) -> None:
-    """
-    Goes through an .env file and sanitizes any quoted values
-    using sanitize(). This ensures passwords or other
-    values with special characters won't break expect scripts
-    or other usage.
-
-    Example:
-        PASSWORD="p@$$word!"  -> PASSWORD="p@\$\$word!"
-    """
-    sanitized_lines = []
-
-    with open(ENV_PATH, "r", encoding="utf-8") as f:
-        for line in f:
-            raw = line.strip()
-
-            # Skip comments and empty lines
-            if not raw or raw.startswith("#"):
-                sanitized_lines.append(line.rstrip())
-                continue
-
-            match = re.match(r"^([\w\-\.]+)\s*=\s*(.*)$", raw)
-            if not match:
-                sanitized_lines.append(line.rstrip())
-                continue
-
-            key, value = match.groups()
-
-            # If value is quoted, sanitize inside
-            if (value.startswith('"') and value.endswith('"')) or \
-               (value.startswith("'") and value.endswith("'")):
-                quote_char = value[0]
-                inner_value = value[1:-1]
-
-                # Sanitize the inner value
-                sanitized_inner = sanitize(inner_value)
-
-                # Re-wrap in the same type of quotes
-                new_value = f"{quote_char}{sanitized_inner}{quote_char}"
-                sanitized_lines.append(f"{key}={new_value}")
-            else:
-                sanitized_lines.append(raw)
-
-    # Write back sanitized file
-    with open(env_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(sanitized_lines) + "\n")
 
 def strip_http_prefix(url):
     """
@@ -168,7 +135,10 @@ def prompt_yes_no(question, default="no"):
     no = {"no", "n"}
     default_prompt = " [y/N] " if default.lower() in ["no", "n"] else " [Y/n] "
     while True:
-        choice = input(f"{question}{default_prompt}").strip().lower()
+        color = colors.get("prompt", MAGENTA)
+        symbol = symbols.get("prompt", "[?]")
+
+        choice = input(f"{color}{symbol} {question}{default_prompt}{RESET}").strip().lower()
         if not choice:
             choice = default.lower()
         if choice in "yes":
