@@ -1,15 +1,73 @@
 #!/usr/bin/env python3
+# SSH_SCRIPT_TAG: manage_servers_script_python_file
+# !IMPORTANT! ^   DO NOT CHANGE
+
+# The above SSH_SCRIPT_TAG identifies this script so that
+# it can be run irregardless of what its name is.
+
 import argparse
+import argcomplete
 import json
 import os
 import sys
+from dotenv import load_dotenv
+from utils import *
 
-SERVERS_FILE = "servers.json"
+# ---------- Load env variables ----------
+
+SSH_SCRIPT_HOME = os.getenv("SSH_SCRIPT_HOME")
+
+if not SSH_SCRIPT_HOME:
+    print_status("SSH_SCRIPT_HOME environment variable not set. Please run setup.sh", status="error")
+    sys.exit(1)
+
+ENV_PATH = f"{SSH_SCRIPT_HOME}/.env"
+
+load_dotenv(dotenv_path=f"{ENV_PATH}", override=True)
+
+SERVERS_LOCAL_FILE = os.getenv("SERVERS_LOCAL_FILE")
+SERVERS_FILE = f"{SSH_SCRIPT_HOME}/{SERVERS_LOCAL_FILE}"
+
+NICKNAME = os.getenv("NICKNAME")
+IP = os.getenv("IP")
+USERNAME = os.getenv("USERNAME")
+BW_NAME = os.getenv("BW_NAME")
+DEFAULT_USERNAME = os.getenv("DEFAULT_USERNAME")
+
+
+# ---------- Helpers ----------
+
+def get_entry_name() -> str:
+    # Ensure unique entry-name (case-insensitive)
+
+    print_status("Adding a new server entry...", status="info")
+    while True:
+        entry_name = input("Entry name: ").strip()
+        if not entry_name:
+            print_status("Entry name cannot be empty.", status="error")
+            continue
+        if entry_name.lower() in existing:
+            print_status(f"An entry named '{entry_name}' already exists. Please choose another.", status="error")
+            continue
+        return entry_name
+
+def get_ssh_username() -> str:
+    while True:
+        ssh_username = input("SSH username: ").strip()
+        if ssh_username:
+            return ssh_username
+        print_status("SSH username is required when no Bitwarden entry is provided.", status="error")
+
+def get_ip_hostname() -> str:
+    while True:
+        ssh_username = input("Server IP/Hostname: ").strip()
+        if ssh_username:
+            return ssh_username
+        print_status("Server IP/Hostname is required.", status="error")
 
 def print_servers(servers: list[dict]) -> None:
     """
     Print server entries in a compact, auto-formatted table.
-    Shows only: entry-name, server-ip, bitwarden-name, ssh-username
     """
     if not servers:
         print("[-] No servers found.")
@@ -19,13 +77,13 @@ def print_servers(servers: list[dict]) -> None:
     rows = []
     for srv in servers:
         rows.append([
-            str(srv.get("entry-name") or "-"),
-            str(srv.get("server-ip") or "-"),
-            str(srv.get("ssh-username") or "-"),
-            str(srv.get("bitwarden-name") or "-"),
+            str(srv.get(NICKNAME) or "-"),
+            str(srv.get(IP) or "-"),
+            str(srv.get(USERNAME) or "-"),
+            str(srv.get(BW_NAME) or "-"),
         ])
 
-    headers = ["Name", "IP", "User", "Bitwarden"]
+    headers = ["Entry name", "IP/Hostname", "User", "Bitwarden name"]
 
     # Compute column widths
     cols = list(zip(*([headers] + rows)))
@@ -43,198 +101,152 @@ def print_servers(servers: list[dict]) -> None:
         print(fmt.format(*row))
 
 
-# ---------- data utils ----------
-
-def load_servers():
-    if not os.path.exists(SERVERS_FILE):
-        return []
-    try:
-        with open(SERVERS_FILE, "r") as f:
-            data = json.load(f)
-            if isinstance(data, list):
-                return data
-            return []
-    except json.JSONDecodeError:
-        return []
-
-def save_servers(servers):
-    with open(SERVERS_FILE, "w") as f:
-        json.dump(servers, f, indent=4)
-
-def load_entry_names():
-    return [s.get("entry-name", "") for s in load_servers() if s.get("entry-name")]
-
 # ---------- completers ----------
 
 def entry_name_completer(prefix, parsed_args, **kwargs):
     """
-    Return only entry-names (no file fallback). Shows all if no prefix.
+    Return only entry-names. Shows all if no prefix.
     Case-insensitive startswith filtering.
     """
-    names = load_entry_names()
+    names = load_server_names(SERVERS_FILE, NICKNAME)
     if prefix:
         pref = prefix.lower()
         return [n for n in names if n.lower().startswith(pref)]
     return names
 
-def entry_name_contains_completer(prefix, parsed_args, **kwargs):
-    """
-    Useful for -l filter: suggest names containing the substring.
-    """
-    names = load_entry_names()
-    if prefix:
-        pref = prefix.lower()
-        return [n for n in names if pref in n.lower()]
-    return names
-
 # ---------- actions ----------
 
-def add_server():
-    print("[*] Adding a new server entry...")
-    servers = load_servers()
-    existing = {s["entry-name"].lower() for s in servers if "entry-name" in s}
+def add_server(provided_entry_name=None):
+    servers = load_servers(SERVERS_FILE)
+    existing = {s[NICKNAME] for s in servers if NICKNAME in s}
 
-    # Ensure unique entry-name (case-insensitive)
-    while True:
-        entry_name = input("Entry name: ").strip()
-        if not entry_name:
-            print("[!] Entry name cannot be empty.")
-            continue
-        if entry_name.lower() in existing:
-            print(f"[!] An entry named '{entry_name}' already exists. Please choose another.")
-            continue
-        break
+    # ----- Get entry name -----
+    # If there is a provided name and it hasn't been taken
+    if provided_entry_name and provided_entry_name not in existing:
+        print_status("Adding a new server entry...", status="info")
+        entry_name = provided_entry_name
+        print_status(f"Entry name: {entry_name}", status="success")
 
+    # If there is a provided name and it is already taken
+    elif provided_entry_name and provided_entry_name in existing:
+        print_status(f"An entry named '{provided_entry_name}' already exists. Please choose another.", status="error")
+        entry_name = get_entry_name()
+
+    # If there is not a provided name
+    else:
+        entry_name = get_entry_name()
+
+    # ----- Get bitwarden name -----
     bitwarden_name = input("Bitwarden name (leave empty if none): ").strip()
+
+
+    # ----- Get ssh username -----
     ssh_username = ""
     if not bitwarden_name:
-        while True:
-            ssh_username = input("SSH username: ").strip()
-            if ssh_username:
-                break
-            print("[!] SSH username is required when no Bitwarden entry is provided.")
+        ssh_username = get_ssh_username()
+    else:
+        ssh_username = DEFAULT_USERNAME
 
-    ip = input("Server IP/Hostname: ").strip()
+    # ----- Get IP / Hostname -----
+    ip = get_ip_hostname()
 
-    new_entry = {"entry-name": entry_name, "ip": ip}
+    # ----- Create new entry -----
+    new_entry = {NICKNAME: entry_name, IP: ip}
     if ssh_username:
-        new_entry["ssh-username"] = ssh_username
+        new_entry[USERNAME] = ssh_username
     if bitwarden_name:
-        new_entry["bitwarden-name"] = bitwarden_name
+        new_entry[BW_NAME] = bitwarden_name
 
     servers.append(new_entry)
-    save_servers(servers)
-    print(f"[+] Added server '{entry_name}'")
+    save_servers(SERVERS_FILE, servers)
+    print_status(f"Added server '{entry_name}'", status="success")
 
 def list_servers(filter_substr=None):
-    servers = load_servers()
+    servers = load_servers(SERVERS_FILE)
     if not servers:
-        print("[!] No servers found.")
+        print_status("No servers found.", status="error")
         return
 
     flt = (filter_substr or "").lower()
+    matching_servers = []
     for s in servers:
-        name = s.get("entry-name", "")
+        name = s.get(NICKNAME, "")
         if flt and flt not in name.lower():
             continue
-        print(json.dumps(s, indent=4))
+        matching_servers.append(s)
+    print_servers(matching_servers)
 
 def edit_server(entry_name):
-    servers = load_servers()
+    servers = load_servers(SERVERS_FILE)
     idx = next((i for i, s in enumerate(servers)
-                if s.get("entry-name", "").lower() == entry_name.lower()), None)
+                if s.get(NICKNAME, "") == entry_name), None)
     if idx is None:
-        print(f"[!] Server '{entry_name}' not found.")
+        print_status(f"Server '{entry_name}' not found.", status="error")
         return
 
     s = servers[idx]
-    print(f"[*] Editing '{s.get('entry-name','')}'. Press Enter to keep current value.")
+    cur_entry_name = s.get(NICKNAME, "")
+    print_status(f"Editing \'{cur_entry_name}\'. Press Enter to keep current value.", status="info")
 
-    cur_ip = s.get("ip", "")
-    new_ip = input(f"IP/Hostname [{cur_ip}]: ").strip()
+    while True:
+        new_entry_name = input(f"Entry name [{cur_entry_name}]: ").strip()
+        if new_entry_name:
+            if any(srv.get(NICKNAME, "") == new_entry_name for srv in servers):
+                print_status(f"Entry name '{new_entry_name}' already exists. Please enter a unique name.", status="error")
+                continue
+            s[NICKNAME] = new_entry_name
+            break
+        else:
+            break
+
+    cur_ip = s.get(IP, "")
+    new_ip = input(f"Ip/Hostname [{cur_ip}]: ").strip()
     if new_ip:
-        s["ip"] = new_ip
+        s[IP] = new_ip
 
-    # If entry has bitwarden-name, prefer editing that; otherwise edit ssh-username
-    if "bitwarden-name" in s:
-        cur_bw = s.get("bitwarden-name", "")
-        new_bw = input(f"Bitwarden name [{cur_bw}]: ").strip()
-        if new_bw:
-            s["bitwarden-name"] = new_bw
-        # Optional: allow switching away from BW by clearing value
-        # If user enters a single dash '-', clear BW and prompt for ssh user
-        if new_bw == "-":
-            s.pop("bitwarden-name", None)
-            su = input(f"SSH username [{s.get('ssh-username','')}]: ").strip()
-            if su:
-                s["ssh-username"] = su
-    else:
-        cur_user = s.get("ssh-username", "")
+    s[USERNAME] = None
+    cur_bw = s.get(BW_NAME, "")
+    new_bw = input(f"Bitwarden Name [{cur_bw}]: ").strip()
+    if new_bw:
+        s[BW_NAME] = new_bw
+    else: # If no Bitwarden Name was provided, ask for a username
+        cur_user = s.get(USERNAME, "")
         new_user = input(f"SSH username [{cur_user}]: ").strip()
         if new_user:
-            s["ssh-username"] = new_user
-        # Optional: allow switching to BW by entering a value here prefixed with 'bw:'
-        # e.g., 'bw:MyVaultItem'
-        if new_user.startswith("bw:"):
-            s.pop("ssh-username", None)
-            s["bitwarden-name"] = new_user[3:].strip()
+            s[USERNAME] = new_user
 
     servers[idx] = s
-    save_servers(servers)
-    print(f"[+] Server '{s.get('entry-name','')}' updated.")
+    save_servers(SERVERS_FILE, servers)
+    print_status(f"Server '{cur_entry_name}' updated.", status="success")
 
 def remove_server(entry_name):
-    servers = load_servers()
+    servers = load_servers(SERVERS_FILE)
     idx = next((i for i, s in enumerate(servers)
-                if s.get("entry-name", "").lower() == entry_name.lower()), None)
+                if s.get(NICKNAME, "") == entry_name), None)
     if idx is None:
-        print(f"[!] Server '{entry_name}' not found.")
+        print_status(f"Server '{entry_name}' not found.", status="error")
         return
 
-    confirm = input(f"Are you sure you want to remove '{entry_name}'? This cannot be undone (y/N): ").strip().lower()
-    if confirm == "y":
+    confirm = prompt_yes_no(f"Are you sure you want to remove '{entry_name}'? This cannot be undone", default="no")
+    if confirm:
         del servers[idx]
-        save_servers(servers)
-        print(f"[+] Removed '{entry_name}'.")
+        save_servers(SERVERS_FILE, servers)
+        print_status(f"Removed '{entry_name}'", status="success")
     else:
-        print("[*] Cancelled.")
+        print_status("Cancelled.", status="info")
 
 # ---------- CLI ----------
 
 def build_parser():
-    parser = argparse.ArgumentParser(description="Manage servers.json entries")
+    parser = argparse.ArgumentParser(description="Manager server entries for connect script")
 
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-a", "--add", action="store_true",
-                       help="Add a new server entry")
-    group.add_argument("-l", "--list", nargs="?", const="",
-                       metavar="FILTER",
-                       help="List servers (optionally filter by substring)")
-    group.add_argument("-e", "--edit", metavar="ENTRY",
-                       help="Edit an existing server (autocomplete)")
-    group.add_argument("-r", "--remove", metavar="ENTRY",
-                       help="Remove a server entry (autocomplete)")
+    parser.add_argument("-a","--add", nargs="?", metavar="ENTRY", help="Add a new server entry")
+    parser.add_argument("-l","--list", nargs="?", const="", help="List existing servers (optionally filter by substring)").completer = entry_name_completer
+    parser.add_argument("-e","--edit", metavar="ENTRY", help="Edit an existing server entry").completer = entry_name_completer
+    parser.add_argument("-r","--remove", metavar="ENTRY", help="Remove an existing server entry").completer = entry_name_completer
 
-    # Attach completers if argcomplete is available
-    try:
-        import argcomplete
-        from argcomplete.completers import SuppressCompleter  # not used, but here if needed
-
-        # autocomplete on entry names for -e/-r
-        parser.add_argument("--_dummy", help=argparse.SUPPRESS)  # placeholder if needed
-        # Assign completers directly on the existing actions:
-        for action in parser._actions:
-            if action.dest == "edit":
-                action.completer = entry_name_completer
-            if action.dest == "remove":
-                action.completer = entry_name_completer
-            if action.dest == "list":
-                action.completer = entry_name_contains_completer
-
-        argcomplete.autocomplete(parser)
-    except Exception:
-        # argcomplete not installed; proceed without completion
-        pass
+    # IMPORTANT: Enable autocomplete
+    argcomplete.autocomplete(parser)
 
     return parser
 
@@ -243,13 +255,15 @@ def main():
     args = parser.parse_args()
 
     if args.add:
-        add_server()
+        add_server(args.add)
     elif args.list is not None:
         list_servers(args.list if args.list != "" else None)
     elif args.edit:
         edit_server(args.edit)
     elif args.remove:
         remove_server(args.remove)
+    else:
+        parser.print_help()
 
 if __name__ == "__main__":
     main()
