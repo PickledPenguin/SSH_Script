@@ -1,3 +1,0 @@
-#!/bin/bash
-# Wrapper to run ssh.py with all passed arguments
-python3 ssh.py "$@"

@@ -1,0 +1,17 @@
+#!/bin/bash
+# ARGCOMPLETE_SCRIPT
+
+# Check for the SSH_SCRIPT_HOME environment variable
+if [[ -z "SSH_SCRIPT_HOME" ]]; then
+        echo "[!] SSH_SCRIPT_HOME is not set. Run 'source ~/.bashrc' or set it manually"
+        exit 1
+fi
+
+PYTHON_SCRIPT=$(grep -rl "# SSH_SCRIPT_TAG: connect_script_python_file" "$SSH_SCRIPT_HOME/python_files"/* | head -n 1)
+
+if [[ -z "$PYTHON_SCRIPT" ]]; then
+        echo "[!] No Python script with tag 'SSH_SCRIPT_TAG: connect_script_python_file' found in $SSH_SCRIPT_HOME/python_files."
+        exit 1
+fi
+
+python3 "$PYTHON_SCRIPT" "$@"
