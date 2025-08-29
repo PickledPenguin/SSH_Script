@@ -143,6 +143,7 @@ def ensure_bitwarden_session():
     except subprocess.CalledProcessError:
         print_status("Logging into Bitwarden CLI...", status="info")
         subprocess.run(["bw", "login", "--apikey", "--quiet"], check=True, env=ENV_DICT)
+        print_status("Logged in to Bitwarden", status="success")
 
     # Make sure any updates after previous login are pulled
     sync_bitwarden()
