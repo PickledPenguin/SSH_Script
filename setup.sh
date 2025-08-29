@@ -112,26 +112,32 @@ fi
 # ---------- ENABLE GLOBAL ARGCOMPLETE ----------
 
 if check_cmd activate-global-python-argcomplete; then
+    # Candidate files for argcomplete
+    COMPLETION_FILES=(
+        "$HOME/.bash_completion"
+        "$HOME/.bash_completion.d/python-argcomplete"
+        "$HOME/.bash_completion.d/_python-argcomplete"
+    )
 
-    # Get the right file location for completion
-    COMPLETION_FILE=".bash_completion"
-    if [ -f $HOME/.bash_completion ]; then
-        COMPLETION_FILE=".bash_completion"
-    elif [ -f $HOME/.bash_completion.d/python-argcomplete ]; then
-        COMPLETION_FILE=".bash_completion.d/python-argcomplete"
-    elif [ -f $HOME/.bash_completion.d/_python-argcomplete ]; then
-        COMPLETION_FILE=".bash_completion.d/_python-argcomplete"
-    else
-        print_status "Unknown completion file. Please source manually or restart shell when setup is complete." "error"
-    fi
+    COMPLETION_FILE=""
+    for f in "${COMPLETION_FILES[@]}"; do
+        if [ -f "$f" ]; then
+            COMPLETION_FILE="$f"
+            break
+        fi
+    done
 
-    # Enable global argcomplete if it hasn't been enabled already
-    if ! grep -q "Begin added by argcomplete" "$HOME/$COMPLETION_FILE"; then
-        print_status "Enabling global argcomplete..." "info"
-        activate-global-python-argcomplete --user
-        source "$HOME/$COMPLETION_FILE"
+    if [ -z "$COMPLETION_FILE" ]; then
+        print_status "Unknown completion file. Please source manually or restart your shell after setup." "error"
     else
-        print_status "Global argcomplete already enabled" "confirm"
+        # Only add once
+        if ! grep -q "Begin added by argcomplete" "$COMPLETION_FILE"; then
+            print_status "Enabling global argcomplete..." "info"
+            activate-global-python-argcomplete --user
+            source "$COMPLETION_FILE"
+        else
+            print_status "Global argcomplete already enabled" "confirm"
+        fi
     fi
 else
     print_status "argcomplete not found. Please install it manually." "error"
