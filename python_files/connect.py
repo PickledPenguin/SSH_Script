@@ -217,7 +217,7 @@ def build_parser():
     parser.add_argument(*CONNECT_JUMP_OPTS, help="Connect via jump server (shortcut for -c <server> -j)").completer = servers_completer
     parser.add_argument(*UPLOAD_OPTS, nargs=2, metavar=("LOCAL", "REMOTE"),
                         help="Upload file to remote")
-    parser.add_argument(*DOWNLOAD_OPTS, nargs=2, metavar=("LOCAL", "REMOTE"),
+    parser.add_argument(*DOWNLOAD_OPTS, nargs=2, metavar=("REMOTE", "LOCAL"),
                         help="Download file from remote")
     argcomplete.autocomplete(parser)
     return parser
