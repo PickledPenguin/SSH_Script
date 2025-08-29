@@ -24,7 +24,7 @@ symbols = {
     "success": "[+]",
     "info": "[*]",
     "error": "[!]",
-    "confirm": "[#]",
+    "confirm": "[✓]",
     "prompt": "[?]"
 }
 
