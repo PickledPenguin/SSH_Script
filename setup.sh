@@ -170,6 +170,17 @@ else
     print_status "Python depenency python-dotenv already installed" "confirm"
 fi
 
+# ---------- ENSURE CORRECT ENV PERMISSIONS ----------
+
+PERMS=$(stat -c "%a" "$ENVPATH")
+if [ "$PERMS" != "600" ]; then
+    print_status "Setting $ENVPATH permissions to 600" "info"
+    chmod 600 "$ENVPATH"
+    print_status "chmod 600 $ENVPATH" "success"
+else
+    print_status "Permissions for $ENVPATH already set to 600" "confirm"
+fi
+
 # ---------- SOURCE ENV ----------
 
 source $ENVPATH
