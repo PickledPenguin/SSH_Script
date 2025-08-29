@@ -4,7 +4,6 @@
 
 # The above SSH_SCRIPT_TAG identifies this script so that
 # it can be run irregardless of what its name is.
-
 """
 connect.py
 
@@ -18,12 +17,17 @@ Connect to a specified server, optionally via a jump server, and optionally tran
 Usage:
     # Connect directly
     python3 ./connect.py -c entry-name
+
     # Connect via Jump server
     python3 ./connect.py -jc entry-name
+    OR
+    python3 ./connect.py -c entry-name -j
+
     # Transfer file at local_path to remote_path and ssh afterward
-    python3 ./connect.py -c entry-name -f local_path remote_path
-    # Transfer file at local_path to remote_path via Jump server and ssh afterward
-    python3 ./connect.py -jc entry-name -f local_path remote_path
+    python3 ./connect.py -c [-j] entry-name -u local_path remote_path
+
+    # Transfer file at remote_path to local_path
+    python3 ./connect.py -c [-j] entry-name -d remote_path local_path
 """
 
 import os
