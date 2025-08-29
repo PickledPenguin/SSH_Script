@@ -235,6 +235,16 @@ fi
 
 # ---------- CONFIGURE BITWARDEN SERVER TO BW_DOMAIN ----------
 
+# before configuring server, check if we are logged in to Bitwarden.
+# If we are, log out.
+print_status "Checking Bitwarden authentication status..." "info"
+if ! bw status --raw 2>/dev/null | grep -q '"status":"unauthenticated"'; then
+    bw logout 2>/dev/null 2>&1
+    print_status "Logged out of Bitwarden" "success"
+else
+    print_status "Already logged out of Bitwarden" "confirm"
+fi
+
 print_status "Configuring Bitwarden server to $SERVER_URL" "info"
 if bw config server "$SERVER_URL" >/dev/null 2>&1; then
 
