@@ -222,7 +222,20 @@ else
         SERVER_URL="https://$BW_DOMAIN"
 fi
 
-print_status "Configured Bitwarden server to $SERVER_URL" "success"
+# ---------- CONFIGURE BITWARDEN SERVER TO BW_DOMAIN ----------
+
+print_status "Configuring Bitwarden server to $SERVER_URL" "info"
+if bw config server "$SERVER_URL" >/dev/null 2>&1; then
+
+    CONFIGURED_URL=$(bw config server 2>/dev/null)
+    if [ "$CONFIGURED_URL" = "$SERVER_URL" ]; then
+        print_status "Bitwarden server configured to $CONFIGURED_URL" "success"
+    else
+        print_status "Bitwarden server configuration mismatch (expected $SERVER_URL, got $CONFIGURED_URL)" "error"
+    fi
+else
+    print_status "Failed to configure Bitwarden server. Is bw installed?" "error"
+fi
 
 # ---------- INSTALL EXPECT ----------
 
