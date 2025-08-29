@@ -5,6 +5,54 @@
 # The above SSH_SCRIPT_TAG identifies this script so that
 # it can be run irregardless of what its name is.
 
+"""
+manage_servers.py — Manage Your SSH Server Configurations
+
+Description:
+    manage_servers.py is a helper tool to add, list, edit, and remove server entries
+    stored in servers.json. It is designed to work with the connect script to make. 
+    The script supports autocompletion for server names and flexible filtering.
+
+Usage:
+    -a, --add
+        Add a new server. You’ll be prompted interactively for:
+        entry_name, ip, username, and optionally bitwarden_name.
+
+    -l, --list [FILTER]
+        List all stored servers. If FILTER is provided, only entries containing
+        that substring in their name are displayed.
+        Example: ./manage_servers.py -l ex → shows "example" and "dexterity_server".
+
+    -e, --edit ENTRY_NAME
+        Edit an existing server. Supports autocompletion of server names.
+        You can press Enter to skip fields you don’t want to change.
+
+    -r, --remove ENTRY_NAME
+        Remove a server by name (with confirmation). Supports autocompletion.
+
+    -h, --help
+        Show usage help.
+
+Examples:
+    # Add a new server
+    ./manage_servers.py -a
+
+    # List all servers
+    ./manage_servers.py -l
+
+    # List only servers containing "ex"
+    ./manage_servers.py -l ex
+
+    # Edit server "example"
+    ./manage_servers.py -e example
+
+    # Remove server "old_server"
+    ./manage_servers.py -r old_server
+        (You’ll be asked to confirm before deletion.)
+
+"""
+
+
 import argparse
 import argcomplete
 import json
