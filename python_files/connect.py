@@ -235,7 +235,7 @@ def main():
 
     # ---------- PARSE ARGUMENTS ----------
 
-    # Determine target entry
+    # Target entry information
     if args.connect:
         entry_name = args.connect
         use_jump = False
@@ -246,10 +246,14 @@ def main():
         print_status("Must specify -c or -jc", status="error")
         sys.exit(1)
 
-    # Determine whether we are using the jump server
     if args.jump:
         use_jump = True
 
+    # Jump server information
+    jump_user = None
+    jump_ip = None
+
+    if use_jump:
         # Get jump server information
         jump_server_data = None
         if not JUMP_ENTRY or not find_entry(servers, JUMP_ENTRY):
@@ -258,8 +262,6 @@ def main():
         jump_server_data = find_entry(servers, JUMP_ENTRY)
 
         # Jump server credentials (username comes from server file, password not needed because of key auth)
-        jump_user = None
-        jump_ip = None
         if jump_server_data:
             jump_user = jump_server_data.get(USERNAME)
             # Get jump server's IP with "https://", "http://", and/or "/App-Role/baseLogin" removed
@@ -318,41 +320,41 @@ def main():
         local_file, remote_dest = args.upload
         print_status("Upload file requested.", status="info")
 
-        jump_server = None
+        jump = None
         if use_jump:
             print_status(f"Uploading file to {entry_name} via jump server {jump_ip}...", status="info")
-            jump_server=f"{jump_user}@{jump_ip}"
+            jump=f"{jump_user}@{jump_ip}"
         else:
             print_status(f"Uploading file directly to {entry_name}...", status="info")
 
         # SCP
-        run_expect_scp(dest_user, target_server_ip, dest_pass, local_file, remote_dest, method="upload", jump_server)
+        run_expect_scp(dest_user, target_server_ip, dest_pass, local_file, remote_dest, method="upload", jump_server=jump)
 
     if args.download:
         remote_file, local_dest = args.download
         print_status("Download file requested.", status="info")
 
-        jump_server = None
+        jump = None
         if use_jump:
             print_status(f"Downloading file from {entry_name} via jump server {jump_ip}...", status="info")
-            jump_server=f"{jump_user}@{jump_ip}"
+            jump=f"{jump_user}@{jump_ip}"
         else:
             print_status(f"Downloading file directly from {entry_name}...", status="info")
 
         # SCP
-        run_expect_scp(dest_user, target_server_ip, dest_pass, local_dest, remote_file, method="download", jump_server)
+        run_expect_scp(dest_user, target_server_ip, dest_pass, local_dest, remote_file, method="download", jump_server=jump)
 
     # We don't want to open a SSH session if we downloaded a file, we assume the user wants to
     # stay on their machine to do whatever they need to do with the file they just downloaded
     if not args.download:
         print_status("Opening SSH session...", status="info")
 
-        jump_server = None
+        jump = None
         if use_jump:
-            jump_server=f"{jump_user}@{jump_ip}"
+            jump=f"{jump_user}@{jump_ip}"
 
         # SSH
-        run_expect_ssh(dest_user, target_server_ip, dest_pass, jump_server)
+        run_expect_ssh(dest_user, target_server_ip, dest_pass, jump_server=jump)
 
 
 if __name__ == "__main__":
