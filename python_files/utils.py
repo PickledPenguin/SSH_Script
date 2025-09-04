@@ -40,7 +40,9 @@ def print_status(message, status="info"):
 # ---------- ENV Helpers ----------
 
 def source_env_dict(env_path) -> dict:
-
+    """
+    Get the ENV from env_path and return it as a dictionary
+    """
     env_vars = dotenv_values(env_path)
 
     for key, value in env_vars.items():
