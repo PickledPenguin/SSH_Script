@@ -6,22 +6,22 @@
 # it can be run irregardless of what its name is.
 
 """
-manage_servers.py — Manage Your SSH Server Configurations
+manage_servers.py
 
 Description:
     manage_servers.py is a helper tool to add, list, edit, and remove server entries
-    stored in servers.json. It is designed to work with the connect script to make. 
+    stored in servers.json. It is designed to work with the connect script.
     The script supports autocompletion for server names and flexible filtering.
 
 Usage:
-    -a, --add
+    -a, --add [ENTRY_NAME]
         Add a new server. You’ll be prompted interactively for:
         entry_name, ip, username, and optionally bitwarden_name.
 
     -l, --list [FILTER]
         List all stored servers. If FILTER is provided, only entries containing
         that substring in their name are displayed.
-        Example: ./manage_servers.py -l ex → shows "example" and "dexterity_server".
+        Example: ./manage_servers.py -l ex -> shows "example" and "server_for_extra_stuff".
 
     -e, --edit ENTRY_NAME
         Edit an existing server. Supports autocompletion of server names.
@@ -52,17 +52,17 @@ Examples:
 
 """
 
-
 import argparse
 import argcomplete
 import json
 import os
 import sys
 from dotenv import load_dotenv
-from utils import *
+from utils import print_status, load_servers, load_server_names, save_servers, prompt_yes_no
 
 # ---------- Load env variables ----------
 
+# The sc
 SSH_SCRIPT_HOME = os.getenv("SSH_SCRIPT_HOME")
 
 if not SSH_SCRIPT_HOME:
@@ -73,9 +73,12 @@ ENV_PATH = f"{SSH_SCRIPT_HOME}/.env"
 
 load_dotenv(dotenv_path=f"{ENV_PATH}", override=True)
 
+# Get the local file path for the json file storing server data from ENV
 SERVERS_LOCAL_FILE = os.getenv("SERVERS_LOCAL_FILE")
+# The absolute file path for the json file storing server data
 SERVERS_FILE = f"{SSH_SCRIPT_HOME}/{SERVERS_LOCAL_FILE}"
 
+# Get the key names for server data from ENV
 NICKNAME = os.getenv("NICKNAME")
 IP = os.getenv("IP")
 USERNAME = os.getenv("USERNAME")
@@ -86,7 +89,10 @@ DEFAULT_USERNAME = os.getenv("DEFAULT_USERNAME")
 # ---------- Helpers ----------
 
 def get_entry_name() -> str:
-    # Ensure unique entry-name (case-insensitive)
+    """Ensure unique entry-name (case-insensitive)"""
+
+    servers = load_servers(SERVERS_FILE)
+    existing = {s[NICKNAME] for s in servers if NICKNAME in s}
 
     print_status("Adding a new server entry...", status="info")
     while True:
@@ -100,6 +106,7 @@ def get_entry_name() -> str:
         return entry_name
 
 def get_ssh_username() -> str:
+    """Get the ssh_username from the user"""
     while True:
         ssh_username = input("SSH username: ").strip()
         if ssh_username:
@@ -107,6 +114,7 @@ def get_ssh_username() -> str:
         print_status("SSH username is required when no Bitwarden entry is provided.", status="error")
 
 def get_ip_hostname() -> str:
+    """Get the IP / Hostname from the user"""
     while True:
         ssh_username = input("Server IP/Hostname: ").strip()
         if ssh_username:
@@ -114,9 +122,7 @@ def get_ip_hostname() -> str:
         print_status("Server IP/Hostname is required.", status="error")
 
 def print_servers(servers: list[dict]) -> None:
-    """
-    Print server entries in a compact, auto-formatted table.
-    """
+    """Print server entries in a compact, auto-formatted table."""
     if not servers:
         print("[-] No servers found.")
         return
@@ -152,10 +158,7 @@ def print_servers(servers: list[dict]) -> None:
 # ---------- completers ----------
 
 def entry_name_completer(prefix, parsed_args, **kwargs):
-    """
-    Return only entry-names. Shows all if no prefix.
-    Case-insensitive startswith filtering.
-    """
+    """Return only entry-names. Shows all if no prefix.Case-insensitive startswith filtering."""
     names = load_server_names(SERVERS_FILE, NICKNAME)
     if prefix:
         pref = prefix.lower()
@@ -165,6 +168,7 @@ def entry_name_completer(prefix, parsed_args, **kwargs):
 # ---------- actions ----------
 
 def add_server(provided_entry_name=None):
+    """Adds a server to server.json"""
     servers = load_servers(SERVERS_FILE)
     existing = {s[NICKNAME] for s in servers if NICKNAME in s}
 
@@ -210,6 +214,7 @@ def add_server(provided_entry_name=None):
     print_status(f"Added server '{entry_name}'", status="success")
 
 def list_servers(filter_substr=None):
+    """Lists out the servers, with an optional substring"""
     servers = load_servers(SERVERS_FILE)
     if not servers:
         print_status("No servers found.", status="error")
@@ -225,6 +230,7 @@ def list_servers(filter_substr=None):
     print_servers(matching_servers)
 
 def edit_server(entry_name):
+    """Edits the given server's information"""
     servers = load_servers(SERVERS_FILE)
     idx = next((i for i, s in enumerate(servers)
                 if s.get(NICKNAME, "") == entry_name), None)
@@ -247,11 +253,6 @@ def edit_server(entry_name):
         else:
             break
 
-    cur_ip = s.get(IP, "")
-    new_ip = input(f"Ip/Hostname [{cur_ip}]: ").strip()
-    if new_ip:
-        s[IP] = new_ip
-
     s[USERNAME] = None
     cur_bw = s.get(BW_NAME, "")
     new_bw = input(f"Bitwarden Name [{cur_bw}]: ").strip()
@@ -263,11 +264,17 @@ def edit_server(entry_name):
         if new_user:
             s[USERNAME] = new_user
 
+    cur_ip = s.get(IP, "")
+    new_ip = input(f"Ip/Hostname [{cur_ip}]: ").strip()
+    if new_ip:
+        s[IP] = new_ip
+
     servers[idx] = s
     save_servers(SERVERS_FILE, servers)
     print_status(f"Server '{cur_entry_name}' updated.", status="success")
 
 def remove_server(entry_name):
+    """Removes the given server"""
     servers = load_servers(SERVERS_FILE)
     idx = next((i for i, s in enumerate(servers)
                 if s.get(NICKNAME, "") == entry_name), None)
@@ -286,9 +293,10 @@ def remove_server(entry_name):
 # ---------- CLI ----------
 
 def build_parser():
+    """Builds the parser"""
     parser = argparse.ArgumentParser(description="Manager server entries for connect script")
 
-    parser.add_argument("-a","--add", nargs="?", metavar="ENTRY", help="Add a new server entry")
+    parser.add_argument("-a","--add", nargs="?", const="", metavar="ENTRY", help="Add a new server entry")
     parser.add_argument("-l","--list", nargs="?", const="", help="List existing servers (optionally filter by substring)").completer = entry_name_completer
     parser.add_argument("-e","--edit", metavar="ENTRY", help="Edit an existing server entry").completer = entry_name_completer
     parser.add_argument("-r","--remove", metavar="ENTRY", help="Remove an existing server entry").completer = entry_name_completer
@@ -299,11 +307,12 @@ def build_parser():
     return parser
 
 def main():
+    """Main"""
     parser = build_parser()
     args = parser.parse_args()
 
-    if args.add:
-        add_server(args.add)
+    if args.add is not None:
+        add_server(args.add if args.add != "" else None)
     elif args.list is not None:
         list_servers(args.list if args.list != "" else None)
     elif args.edit:
