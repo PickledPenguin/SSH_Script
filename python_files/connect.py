@@ -40,8 +40,7 @@ import getpass
 import re
 import sys
 from dotenv import load_dotenv
-from utils import print_status, load_json, save_json, load_servers, load_server_names, sanitize, strip_http_prefix, strip_suffix, source_env_dict
-from utils import *
+from utils import print_status, load_servers, load_server_names, sanitize, strip_http_prefix, strip_suffix, source_env_dict
 
 # ---------- Load env variables ----------
 
