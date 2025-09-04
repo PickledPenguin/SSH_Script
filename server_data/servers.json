@@ -1,6 +1,8 @@
+[
 {
     "entry-name": "Server entry name (nickname)",
     "ssh-ip": "Server IP or hostname",
     "bitwarden-name": "Copy FULL item name Bitwarden that contains server username and password",
     "ssh-username": "Server username, if no bitwarden-name entry available (usually psm)"
 }
+]
