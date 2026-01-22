@@ -87,6 +87,7 @@ JUMP_CONNECT_OPTS = ("-jc","--jumpconnect") # Aliases for connect + jump
 CONNECT_JUMP_OPTS = ("-cj","--connectjump") # Aliases for connect + jump
 UPLOAD_OPTS = ("-u", "--upload")
 DOWNLOAD_OPTS = ("-d", "--download")
+PORT_OPTS = ("-p", "--port")
 
 # ------------------- Utility Functions -------------------
 
@@ -169,13 +170,13 @@ def ensure_bitwarden_session():
     return unlock.stdout.strip()
 
 
-def run_expect_scp(dest_user, dest_ip, dest_pass, local, remote, method="upload", jump_server=None):
+def run_expect_scp(dest_user, dest_ip, dest_pass, local, remote, method="upload", jump_server=None, port=None):
     """Automates scp password entry using expect."""
     from_dest = f"{local}" if method=="upload" else f"{dest_user}@{dest_ip}:{remote}"
     to_dest = f"{dest_user}@{dest_ip}:{remote}" if method=="upload" else f"{local}"
 
     expect_script = f'''
-    spawn scp {'-J ' + jump_server if jump_server else ''} {from_dest} {to_dest}
+    spawn scp {'-P ' + port if port else ''} {'-J ' + jump_server if jump_server else ''} {from_dest} {to_dest}
     expect {{
         "*yes/no*" {{
             send "yes\\r"
@@ -189,10 +190,10 @@ def run_expect_scp(dest_user, dest_ip, dest_pass, local, remote, method="upload"
     '''
     subprocess.run(["expect", "-c", expect_script], check=True, env=ENV_DICT)
 
-def run_expect_ssh(dest_user, dest_ip, dest_pass, jump_server=None):
+def run_expect_ssh(dest_user, dest_ip, dest_pass, jump_server=None, port=None):
     """Automates ssh password entry using expect."""
     expect_script = f'''
-    spawn ssh {'-J ' + jump_server if jump_server else ''} {dest_user}@{dest_ip}
+    spawn ssh {'-p ' + port if port else ''} {'-J ' + jump_server if jump_server else ''} {dest_user}@{dest_ip}
     expect {{
         "*yes/no*" {{
             send "yes\\r"
@@ -218,6 +219,7 @@ def build_parser():
                         help="Upload file to remote")
     parser.add_argument(*DOWNLOAD_OPTS, nargs=2, metavar=("REMOTE", "LOCAL"),
                         help="Download file from remote")
+    parser.add_argument(*PORT_OPTS, help="Connect via the specified port")
     argcomplete.autocomplete(parser)
     return parser
 
@@ -234,10 +236,12 @@ def main():
 
     # ---------- PARSE ARGUMENTS ----------
 
+    use_jump = False
+    port = None
+
     # Target entry information
     if args.connect:
         entry_name = args.connect
-        use_jump = False
     elif args.jumpconnect or args.connectjump:
         entry_name = args.jumpconnect or args.connectjump
         use_jump = True
@@ -247,6 +251,9 @@ def main():
 
     if args.jump:
         use_jump = True
+
+    if args.port:
+        port = args.port
 
     # Jump server information
     jump_user = None
