@@ -5,7 +5,9 @@ from dotenv import dotenv_values
 
 ENV_PATH = ""
 
+
 # ---------- Colored Status Printing ----------
+
 RESET = "\033[0m"
 GREEN = "\033[92m"
 YELLOW = "\033[93m"
@@ -37,6 +39,7 @@ def print_status(message, status="info"):
     symbol = symbols.get(status, "[*]")
     print(f"{color}{symbol} {message}{RESET}")
 
+
 # ---------- ENV Helpers ----------
 
 def source_env_dict(env_path) -> dict:
@@ -51,7 +54,9 @@ def source_env_dict(env_path) -> dict:
 
     return dict(os.environ)
 
+
 # ---------- JSON Helpers ----------
+
 def load_json(file_path):
     """
     Load JSON data from a file. Returns {} if file does not exist.
@@ -94,7 +99,9 @@ def load_server_names(servers_file, identifier):
     servers = load_servers(servers_file)
     return [srv.get(identifier, "") for srv in servers if identifier in srv]
 
+
 # ---------- Password / String Helpers ----------
+
 def sanitize(input_str):
     """
     Escape characters in a password that might break shell commands (expect, etc).
