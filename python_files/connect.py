@@ -334,7 +334,7 @@ def main():
             print_status(f"Uploading file directly to {entry_name}...", status="info")
 
         # SCP
-        run_expect_scp(dest_user, target_server_ip, dest_pass, local_file, remote_dest, method="upload", jump_server=jump)
+        run_expect_scp(dest_user, target_server_ip, dest_pass, local_file, remote_dest, method="upload", jump_server=jump, port=port)
 
     if args.download:
         remote_file, local_dest = args.download
@@ -348,7 +348,7 @@ def main():
             print_status(f"Downloading file directly from {entry_name}...", status="info")
 
         # SCP
-        run_expect_scp(dest_user, target_server_ip, dest_pass, local_dest, remote_file, method="download", jump_server=jump)
+        run_expect_scp(dest_user, target_server_ip, dest_pass, local_dest, remote_file, method="download", jump_server=jump, port=port)
 
     # We don't want to open a SSH session if we downloaded a file, we assume the user wants to
     # stay on their machine to do whatever they need to do with the file they just downloaded
@@ -360,7 +360,7 @@ def main():
             jump=f"{jump_user}@{jump_ip}"
 
         # SSH
-        run_expect_ssh(dest_user, target_server_ip, dest_pass, jump_server=jump)
+        run_expect_ssh(dest_user, target_server_ip, dest_pass, jump_server=jump, port=port)
 
 
 if __name__ == "__main__":
