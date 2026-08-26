@@ -146,7 +146,11 @@ def prompt_yes_no(question, default="no"):
     while True:
         color = colors.get("prompt", MAGENTA)
         symbol = symbols.get("prompt", "[?]")
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
         choice = input(f"{color}{symbol} {question}{default_prompt}{RESET}").strip().lower()
         if not choice:
             choice = default.lower()

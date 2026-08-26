@@ -2,6 +2,7 @@
 # SSH_SCRIPT_TAG: connect_script_python_file
 # !IMPORTANT! ^   DO NOT CHANGE
 
+<<<<<<< HEAD
 # The above SSH_SCRIPT_TAG identifies this script so that 
 # it can be identified irregardless of what its name is.
 
@@ -26,11 +27,31 @@ Usage:
     # Connect directly
     python3 ./connect.py -c entry-name
     
+=======
+# The above SSH_SCRIPT_TAG identifies this script so that
+# it can be identified irregardless of what its name is.
+
+"""
+connect.py
+
+Connect to a specified server, optionally via a jump server, and optionally transfer/retrieve a file.
+- Jump server entry name is stored in .env (JUMP_SERVER_ENTRY).
+- Bitwarden CLI login credentials are stored in .env (ID, Secret, and Password)
+- All server details (including jump server) are in servers.json.
+- If the bitwarden name is present for a server, fetch credentials from Bitwarden CLI.
+- If Bitwarden is missing credentials or not available, prompt user for credentials interactively.
+
+Usage:
+    # Connect directly
+    python3 ./connect.py -c entry-name
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     # Connect via Jump server
     python3 ./connect.py -jc entry-name
     OR
     python3 ./connect.py -c entry-name -j
 
+<<<<<<< HEAD
     # Connect via a specific port
     python3 ./connect.py -c entry-name -p port
 
@@ -45,6 +66,13 @@ Usage:
     python3 ./connect.py -c entry-name -t -p port
 
 ==========================================================================
+=======
+    # Transfer file at local_path to remote_path and ssh afterward
+    python3 ./connect.py -c [-j] entry-name -u local_path remote_path
+
+    # Transfer file at remote_path to local_path
+    python3 ./connect.py -c [-j] entry-name -d remote_path local_path
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 """
 
 import os
@@ -79,8 +107,11 @@ BW_CLIENTSECRET = os.getenv("BW_CLIENTSECRET")
 
 # Get Jump server name from ENV
 JUMP_ENTRY = os.getenv("JUMP_SERVER_ENTRY")  # Jump server entry name in servers.json
+<<<<<<< HEAD
 # Get the Tunnel server address from ENV
 TUNNEL_SERVER = os.getenv("TUNNEL_SERVER")  # Tunnel server address
+=======
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 
 # Get the local file path for the json file storing server data from ENV
 SERVERS_LOCAL_FILE = os.getenv("SERVERS_LOCAL_FILE")
@@ -106,7 +137,10 @@ CONNECT_JUMP_OPTS = ("-cj","--connectjump") # Aliases for connect + jump
 UPLOAD_OPTS = ("-u", "--upload")
 DOWNLOAD_OPTS = ("-d", "--download")
 PORT_OPTS = ("-p", "--port")
+<<<<<<< HEAD
 TUNNEL_FLAGS = ("-t", "--tunnel")
+=======
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 
 # ------------------- Utility Functions -------------------
 
@@ -144,6 +178,7 @@ def bitwarden_fetch(item_name, session_key):
         username = data.get("login", {}).get("username")
         password = data.get("login", {}).get("password")
         bw_cache[item_name] = (username, password)
+<<<<<<< HEAD
         
         print_status("Credentials retrieved", status="success")
         return username, password
@@ -154,6 +189,13 @@ def bitwarden_fetch(item_name, session_key):
         print_status(f"Standard Output: {e.stdout}", status="debug")
         print_status(f"Standard Error: {e.stderr}", status="debug")
 
+=======
+
+        print_status("Credentials retrieved", status="success")
+        return username, password
+    except subprocess.CalledProcessError:
+        print_status(f"Could not fetch '{item_name}' from Bitwarden.", status="warn")
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
         bw_cache[item_name] = (None, None)
         return None, None
 
@@ -173,11 +215,16 @@ def ensure_bitwarden_session():
         sys.exit(1)
 
     print_status("Checking login status", status="info")
+<<<<<<< HEAD
     was_bw_already_logged_in = False
     try:
         subprocess.run(["bw", "login", "--check"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=ENV_DICT)
         # Set the flag to confirm Bitwarden was already logged into
         was_bw_already_logged_in = True
+=======
+    try:
+        subprocess.run(["bw", "login", "--check"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=ENV_DICT)
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
         print_status("Already logged in", status="confirm")
     except subprocess.CalledProcessError:
         print_status("Logging into Bitwarden CLI...", status="info")
@@ -194,7 +241,12 @@ def ensure_bitwarden_session():
     )
     print_status("Bitwarden vault unlocked", status="success")
     # Return the session key
+<<<<<<< HEAD
     return unlock.stdout.strip(), was_bw_already_logged_in
+=======
+    return unlock.stdout.strip()
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 
 def run_expect_scp(dest_user, dest_ip, dest_pass, local, remote, method="upload", jump_server=None, port=None):
     """Automates scp password entry using expect."""
@@ -233,6 +285,10 @@ def run_expect_ssh(dest_user, dest_ip, dest_pass, jump_server=None, port=None):
     '''
     subprocess.run(["expect", "-c", expect_script], check=True, env=ENV_DICT)
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 def build_parser():
     """Builds the parser with the given options and assigns automplete function to relevant arguments"""
     parser = argparse.ArgumentParser(description="SSH/File transfer helper")
@@ -245,8 +301,11 @@ def build_parser():
     parser.add_argument(*DOWNLOAD_OPTS, nargs=2, metavar=("REMOTE", "LOCAL"),
                         help="Download file from remote")
     parser.add_argument(*PORT_OPTS, help="Connect via the specified port")
+<<<<<<< HEAD
     parser.add_argument(*TUNNEL_FLAGS, action="store_true", help="Connect via a tunnel server")
 
+=======
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     argcomplete.autocomplete(parser)
     return parser
 
@@ -265,7 +324,10 @@ def main():
 
     use_jump = False
     port = None
+<<<<<<< HEAD
     use_tunnel = False
+=======
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 
     # Target entry information
     if args.connect:
@@ -276,13 +338,18 @@ def main():
     else:
         print_status("Must specify -c or -jc", status="error")
         sys.exit(1)
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     if args.jump:
         use_jump = True
 
     if args.port:
         port = args.port
 
+<<<<<<< HEAD
     if args.tunnel:
         use_tunnel = args.tunnel
 
@@ -290,6 +357,12 @@ def main():
     jump_user = None
     jump_ip = None
     
+=======
+    # Jump server information
+    jump_user = None
+    jump_ip = None
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     if use_jump:
         # Get jump server information
         jump_server_data = None
@@ -297,7 +370,11 @@ def main():
             print_status("Jump server entry missing or invalid in .env or servers.json", status="error")
             return
         jump_server_data = find_entry(servers, JUMP_ENTRY)
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
         # Jump server credentials (username comes from server file, password not needed because of key auth)
         if jump_server_data:
             jump_user = jump_server_data.get(USERNAME)
@@ -317,6 +394,7 @@ def main():
 
     # Get target server username
     dest_user = target_server.get(USERNAME)
+<<<<<<< HEAD
 
     # If we are using the tunnel, set the target_server_ip to the tunnel server
     if use_tunnel:
@@ -334,17 +412,36 @@ def main():
 
     # ---------- GET PASSWORD FROM BITWARDEN IF POSSIBLE ----------
     
+=======
+    # Get target server's IP with "https://", "http://", and/or "/App-Role/baseLogin" removed
+    # in case it has been copied from Bitwarden directly or from the CRM
+    target_server_ip = strip_http_prefix(target_server.get(IP))
+    target_server_ip = strip_suffix(target_server_ip, '/App-Role/baseLogin')
+
+    # Target server credentials
+    dest_user = target_server.get(USERNAME)
+    dest_pass = None
+
+
+    # ---------- GET PASSWORD FROM BITWARDEN IF POSSIBLE ----------
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     # If the target server has bitwarden information, get the password from bitwarden
     session_key = None
     if BW_NAME in target_server:
         # Get session key from logging in / unlocking bitwarden
+<<<<<<< HEAD
         session_key, was_bw_already_logged_in = ensure_bitwarden_session()
+=======
+        session_key = ensure_bitwarden_session()
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
         if session_key:
             bw_user, bw_pass = bitwarden_fetch(target_server[BW_NAME], session_key)
             if bw_user:
                 dest_user = bw_user
             if bw_pass:
                 dest_pass = bw_pass
+<<<<<<< HEAD
 
             # If Bitwarden was not already unlocked
             # i.e. If this script is what unlocked Bitwarden
@@ -353,6 +450,12 @@ def main():
                 print_status("Locking Bitwarden...", status="info")
                 subprocess.run(["bw", "lock"], check=True, env=ENV_DICT)
     
+=======
+            # Lock Bitwarden after we're done
+            print_status("Locking Bitwarden...", status="info")
+            subprocess.run(["bw", "lock"], check=True, env=ENV_DICT)
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     # ---------- FALLBACK FOR MANUAL PASSWORD ENTRY ----------
 
     # If we don't have a password from bitwarden, manually enter it
@@ -372,10 +475,17 @@ def main():
             jump=f"{jump_user}@{jump_ip}"
         else:
             print_status(f"Uploading file directly to {entry_name}...", status="info")
+<<<<<<< HEAD
         
         # SCP
         run_expect_scp(dest_user, target_server_ip, dest_pass, local_file, remote_dest, method="upload", jump_server=jump, port=port)
     
+=======
+
+        # SCP
+        run_expect_scp(dest_user, target_server_ip, dest_pass, local_file, remote_dest, method="upload", jump_server=jump, port=port)
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     if args.download:
         remote_file, local_dest = args.download
         print_status("Download file requested.", status="info")
@@ -386,19 +496,34 @@ def main():
             jump=f"{jump_user}@{jump_ip}"
         else:
             print_status(f"Downloading file directly from {entry_name}...", status="info")
+<<<<<<< HEAD
         
         # SCP
         run_expect_scp(dest_user, target_server_ip, dest_pass, local_dest, remote_file, method="download", jump_server=jump, port=port)
     
+=======
+
+        # SCP
+        run_expect_scp(dest_user, target_server_ip, dest_pass, local_dest, remote_file, method="download", jump_server=jump, port=port)
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     # We don't want to open a SSH session if we downloaded a file, we assume the user wants to
     # stay on their machine to do whatever they need to do with the file they just downloaded
     if not args.download:
         print_status("Opening SSH session...", status="info")
+<<<<<<< HEAD
         
         jump = None
         if use_jump:
             jump=f"{jump_user}@{jump_ip}"
         
+=======
+
+        jump = None
+        if use_jump:
+            jump=f"{jump_user}@{jump_ip}"
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
         # SSH
         run_expect_ssh(dest_user, target_server_ip, dest_pass, jump_server=jump, port=port)
 

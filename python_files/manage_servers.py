@@ -6,10 +6,14 @@
 # it can be run irregardless of what its name is.
 
 """
+<<<<<<< HEAD
 ==========================================================================
 
 Purpose:
     Adds, lists, edits, and removes server entries containing SSH connection data
+=======
+manage_servers.py
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 
 Description:
     manage_servers.py is a helper tool to add, list, edit, and remove server entries
@@ -53,6 +57,7 @@ Examples:
     ./manage_servers.py -r old_server
         (You’ll be asked to confirm before deletion.)
 
+<<<<<<< HEAD
 Author:
     Jaden Schuster
 
@@ -60,6 +65,8 @@ Last updated:
     03/05/2026
 
 ==========================================================================
+=======
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 """
 
 import argparse
@@ -175,32 +182,53 @@ def entry_name_completer(prefix, parsed_args, **kwargs):
         return [n for n in names if n.lower().startswith(pref)]
     return names
 
+<<<<<<< HEAD
 # ---------- Actions ----------
+=======
+# ---------- actions ----------
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 
 def add_server(provided_entry_name=None):
     """Adds a server to server.json"""
     servers = load_servers(SERVERS_FILE)
     existing = {s[NICKNAME] for s in servers if NICKNAME in s}
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     # ----- Get entry name -----
     # If there is a provided name and it hasn't been taken
     if provided_entry_name and provided_entry_name not in existing:
         print_status("Adding a new server entry...", status="info")
         entry_name = provided_entry_name
         print_status(f"Entry name: {entry_name}", status="success")
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     # If there is a provided name and it is already taken
     elif provided_entry_name and provided_entry_name in existing:
         print_status(f"An entry named '{provided_entry_name}' already exists. Please choose another.", status="error")
         entry_name = get_entry_name()
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     # If there is not a provided name
     else:
         entry_name = get_entry_name()
 
     # ----- Get bitwarden name -----
     bitwarden_name = input("Bitwarden name (leave empty if none): ").strip()
+<<<<<<< HEAD
     
+=======
+
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     # ----- Get ssh username -----
     ssh_username = ""
     if not bitwarden_name:
@@ -250,7 +278,11 @@ def edit_server(entry_name):
     s = servers[idx]
     cur_entry_name = s.get(NICKNAME, "")
     print_status(f"Editing \'{cur_entry_name}\'. Press Enter to keep current value.", status="info")
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     while True:
         new_entry_name = input(f"Entry name [{cur_entry_name}]: ").strip()
         if new_entry_name:
@@ -290,7 +322,11 @@ def remove_server(entry_name):
     if idx is None:
         print_status(f"Server '{entry_name}' not found.", status="error")
         return
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     confirm = prompt_yes_no(f"Are you sure you want to remove '{entry_name}'? This cannot be undone", default="no")
     if confirm:
         del servers[idx]

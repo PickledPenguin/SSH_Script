@@ -1,4 +1,5 @@
 [
+<<<<<<< HEAD
     {
         "entry-name": "jumpbox",
         "username": "jschuster",
@@ -401,3 +402,12 @@
         "bitwarden-name": "Charles County Public Schools webcrd3"
     }
 ]
+=======
+{
+    "entry-name": "Server entry name (nickname)",
+    "ssh-ip": "Server IP or hostname",
+    "bitwarden-name": "Copy FULL item name Bitwarden that contains server username and password",
+    "ssh-username": "Server username, if no bitwarden-name entry available (usually psm)"
+}
+]
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936

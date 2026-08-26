@@ -1,14 +1,21 @@
 #!/bin/bash
 set -e
 
+<<<<<<< HEAD
 # ---------- OPTIONAL PARAMETERS ----------
 
 HOME_VAR=${1:-HOME}
+=======
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 
 # ---------- CONSTANTS / FILENAMES ----------
 
 # Directory to install wrapper scripts
+<<<<<<< HEAD
 INSTALL_DIR="$HOME_VAR/.local/bin"
+=======
+INSTALL_DIR="$HOME/.local/bin"
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 # Current repo directory
 REPO_DIR="$(pwd)"
 # Path to the .env file
@@ -37,7 +44,11 @@ COLORS=(
         ["info"]=$YELLOW
         ["error"]=$RED
         ["prompt"]=$MAGENTA
+<<<<<<< HEAD
 	["confirm"]=$BLUE
+=======
+        ["confirm"]=$BLUE
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 )
 
 # Const symbol mappings
@@ -47,7 +58,11 @@ SYMBOLS=(
         ["info"]="[*]"
         ["error"]="[!]"
         ["prompt"]="[?]"
+<<<<<<< HEAD
 	["confirm"]="[✓]"
+=======
+        ["confirm"]="[✓]"
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 )
 
 # ---------- MAKE DIRECTORY FOR INSTALLS ----------
@@ -69,9 +84,15 @@ print_status(){
 
 # ---------- CREATE SSH_SCRIPT_HOME ----------
 
+<<<<<<< HEAD
 if ! grep -q "SSH_SCRIPT_HOME" "$HOME_VAR/.zshrc"; then
     echo "export SSH_SCRIPT_HOME=\"$REPO_DIR\"" >> "$HOME_VAR/.zshrc"
     print_status "Added SSH_SCRIPT_HOME to ~/.zshrc" "success"
+=======
+if ! grep -q "SSH_SCRIPT_HOME" "$HOME/.bashrc"; then
+    echo "export SSH_SCRIPT_HOME=\"$REPO_DIR\"" >> "$HOME/.bashrc"
+    print_status "Added SSH_SCRIPT_HOME to ~/.bashrc" "success"
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 else
     print_status "SSH_SCRIPT_HOME already set to $SSH_SCRIPT_HOME" "confirm"
 fi
@@ -82,6 +103,7 @@ fi
 print_status "Installing wrapper scripts to $INSTALL_DIR..." "info"
 for script in $(grep -rl "^# ARGCOMPLETE_SCRIPT" "$WRAPPER_SCRIPT_DIRECTORY"/*); do
     if [[ -f "$script" ]]; then
+<<<<<<< HEAD
 	BASENAME=$(basename "$script")
         cp "$script" "$INSTALL_DIR/"
         chmod +x "$INSTALL_DIR/$BASENAME"
@@ -89,18 +111,36 @@ for script in $(grep -rl "^# ARGCOMPLETE_SCRIPT" "$WRAPPER_SCRIPT_DIRECTORY"/*);
     else
 	echo "$script"
 	echo "$BASENAME"
+=======
+        BASENAME=$(basename "$script")
+        cp "$script" "$INSTALL_DIR/"
+        chmod +x "$INSTALL_DIR/$BASENAME"
+        print_status "    Installed $BASENAME" "success"
+    else
+        echo "$script"
+        echo "$BASENAME"
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
         print_status "$BASENAME not found in $WRAPPER_SCRIPT_DIRECTORY" "error"
     fi
 done
 
 # ---------- ADD INSTALL_DIR TO PATH ----------
 
+<<<<<<< HEAD
 if ! grep -q "export PATH=\"$INSTALL_DIR:\$PATH\"" "$HOME_VAR/.zshrc"; then
     # export for this session
     export PATH="$INSTALL_DIR:$PATH"
     # add to .zshrc for future sessions
     echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$HOME_VAR/.zshrc"
     print_status "Added $INSTALL_DIR to PATH in ~/.zshrc" "success"
+=======
+if ! grep -q "export PATH=\"$INSTALL_DIR:\$PATH\"" "$HOME/.bashrc"; then
+    # export for this session
+    export PATH="$INSTALL_DIR:$PATH"
+    # add to .bashrc for future sessions
+    echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$HOME/.bashrc"
+    print_status "Added $INSTALL_DIR to PATH in ~/.bashrc" "success"
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 fi
 
 # ---------- INSTALL PYTHON-ARGCOMPLETE ----------
@@ -116,7 +156,15 @@ fi
 
 if check_cmd activate-global-python-argcomplete; then
     # Candidate files for argcomplete
+<<<<<<< HEAD
     COMPLETION_FILES=("$HOME_VAR/.bash_completion" "$HOME_VAR/.bash_completion.d/python-argcomplete" "$HOME_VAR/.bash_completion.d/_python-argcomplete")
+=======
+    COMPLETION_FILES=(
+        "$HOME/.bash_completion"
+        "$HOME/.bash_completion.d/python-argcomplete"
+        "$HOME/.bash_completion.d/_python-argcomplete"
+    )
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 
     COMPLETION_FILE=""
     for f in "${COMPLETION_FILES[@]}"; do
@@ -129,11 +177,18 @@ if check_cmd activate-global-python-argcomplete; then
     if [ -z "$COMPLETION_FILE" ]; then
         print_status "Unknown completion file. Please source manually or restart your shell after setup." "error"
     else
+<<<<<<< HEAD
+=======
+        # Only add once
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
         if ! grep -q "Begin added by argcomplete" "$COMPLETION_FILE"; then
             print_status "Enabling global argcomplete..." "info"
             activate-global-python-argcomplete --user
             source "$COMPLETION_FILE"
+<<<<<<< HEAD
 	    print_status "Enabled global argcomplete" "success"
+=======
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
         else
             print_status "Global argcomplete already enabled" "confirm"
         fi
@@ -149,12 +204,21 @@ if check_cmd register-python-argcomplete; then
     for f in $(grep -rl "^# ARGCOMPLETE_SCRIPT" "$WRAPPER_SCRIPT_DIRECTORY"/*); do
         eval "$(register-python-argcomplete "$(basename "$f")")"
 
+<<<<<<< HEAD
         # Add to ~/.zshrc if it isn't there already
 	if ! grep -q "register-python-argcomplete $(basename "$f")" "$HOME_VAR/.zshrc"; then
             echo "eval \"\$(register-python-argcomplete $(basename "$f"))\"" >> "$HOME_VAR/.zshrc"
             print_status "register-python-argcomplete for $(basename "$f") set up in ~/.zshrc" "success"
         else
 	    print_status "register-python-argcomplete for $(basename "$f") already set up in ~/.zshrc" "confirm"
+=======
+        # Add to ~/.bashrc if it isn't there already
+        if ! grep -q "register-python-argcomplete $(basename "$f")" "$HOME/.bashrc"; then
+            echo "eval \"\$(register-python-argcomplete $(basename "$f"))\"" >> "$HOME/.bashrc"
+            print_status "register-python-argcomplete for $(basename "$f") set up in ~/.bashrc" "success"
+        else
+            print_status "register-python-argcomplete for $(basename "$f") already set up in ~/.bashrc" "confirm"
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
         fi
     done
 fi
@@ -171,10 +235,22 @@ fi
 
 # ---------- ENSURE CORRECT ENV PERMISSIONS ----------
 
+<<<<<<< HEAD
 print_status "Setting $ENVPATH permissions to 600" "info"
 chmod 600 "$ENVPATH"
 print_status "chmod 600 $ENVPATH" "success"
     
+=======
+PERMS=$(stat -c "%a" "$ENVPATH")
+if [ "$PERMS" != "600" ]; then
+    print_status "Setting $ENVPATH permissions to 600" "info"
+    chmod 600 "$ENVPATH"
+    print_status "chmod 600 $ENVPATH" "success"
+else
+    print_status "Permissions for $ENVPATH already set to 600" "confirm"
+fi
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 # ---------- SOURCE ENV ----------
 
 source $ENVPATH
@@ -228,6 +304,7 @@ fi
 # ---------- SET BW_DOMAIN ----------
 
 if [ -z "$BW_DOMAIN" ]; then
+<<<<<<< HEAD
 	print_status "BW_DOMAIN is not set in .env" "error"
 	exit 1
 fi
@@ -236,11 +313,25 @@ if [[ "$BW_DOMAIN" =~ ^https?:// ]]; then
 	SERVER_URL="$BW_DOMAIN"
 else
 	SERVER_URL="https://$BW_DOMAIN"
+=======
+        print_status "BW_DOMAIN is not set in .env" "error"
+        exit 1
+fi
+# Add https:// if BW_DOMAIN does not start with http:// or https://
+if [[ "$BW_DOMAIN" =~ ^https?:// ]]; then
+        SERVER_URL="$BW_DOMAIN"
+else
+        SERVER_URL="https://$BW_DOMAIN"
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 fi
 
 # ---------- CONFIGURE BITWARDEN SERVER TO BW_DOMAIN ----------
 
+<<<<<<< HEAD
 # before configuring server, check if we are logged in to Bitwarden. 
+=======
+# before configuring server, check if we are logged in to Bitwarden.
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
 # If we are, log out.
 print_status "Checking Bitwarden authentication status..." "info"
 if ! bw status --raw 2>/dev/null | grep -q '"status":"unauthenticated"'; then
@@ -252,7 +343,11 @@ fi
 
 print_status "Configuring Bitwarden server to $SERVER_URL" "info"
 if bw config server "$SERVER_URL" >/dev/null 2>&1; then
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
     CONFIGURED_URL=$(bw config server 2>/dev/null)
     if [ "$CONFIGURED_URL" = "$SERVER_URL" ]; then
         print_status "Bitwarden server configured to $CONFIGURED_URL" "success"
@@ -270,12 +365,21 @@ if ! check_cmd expect; then
     if [[ "$OS_TYPE" == "Linux" ]]; then
         if check_cmd apt; then
             sudo apt update && sudo apt install -y expect
+<<<<<<< HEAD
 	elif check_cmd yum; then
             sudo yum install -y expect
         elif check_cmd dnf; then
 	    sudo dnf install -y expect
 	else
 	    print_status "Unknown Linux distribution. Install expect manually." "error"
+=======
+        elif check_cmd yum; then
+            sudo yum install -y expect
+        elif check_cmd dnf; then
+            sudo dnf install -y expect
+        else
+            print_status "Unknown Linux distribution. Install expect manually." "error"
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
         fi
     elif [[ "$OS_TYPE" == "Darwin" ]]; then
         if check_cmd brew; then
@@ -293,4 +397,7 @@ fi
 
 
 print_status "All dependencies installed successfully." "confirm"
+<<<<<<< HEAD
 
+=======
+>>>>>>> 559147fe778d8e791bf424debfdd127d86f6a936
