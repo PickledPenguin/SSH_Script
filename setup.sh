@@ -1,77 +1,296 @@
 #!/bin/bash
 set -e
 
-#echo "[*] Installing/Upgrading Python dependency: python-pip..."
-#apt install python3-pip
-echo "[*] Installing/Upgrading Python dependency: python-dotenv..."
-apt install --upgrade python3-dotenv
+# ---------- OPTIONAL PARAMETERS ----------
+
+HOME_VAR=${1:-HOME}
+
+# ---------- CONSTANTS / FILENAMES ----------
+
+# Directory to install wrapper scripts
+INSTALL_DIR="$HOME_VAR/.local/bin"
+# Current repo directory
+REPO_DIR="$(pwd)"
+# Path to the .env file
+ENVPATH="$REPO_DIR/.env"
+# Directory where the wrapper scripts can be found
+WRAPPER_SCRIPT_DIRECTORY="$REPO_DIR/bash_scripts"
+
+# Get an array of all wrapper scripts with the ARGCOMPLETE_SCRIPT tag
+WRAPPER_SCRIPTS=()
+for f in $(grep -rl "^# ARGCOMPLETE_SCRIPT" "$WRAPPER_SCRIPT_DIRECTORY"/*); do
+    WRAPPER_SCRIPTS+=("$f")
+done
+
+# Const colors
+RESET="\e[0m"
+GREEN="\e[92m"
+YELLOW="\e[93m"
+RED="\e[91m"
+BLUE="\e[94m"
+MAGENTA="\e[95m"
+
+# Const color mappings
+declare -A COLORS
+COLORS=(
+        ["success"]=$GREEN
+        ["info"]=$YELLOW
+        ["error"]=$RED
+        ["prompt"]=$MAGENTA
+	["confirm"]=$BLUE
+)
+
+# Const symbol mappings
+declare -A SYMBOLS
+SYMBOLS=(
+        ["success"]="[+]"
+        ["info"]="[*]"
+        ["error"]="[!]"
+        ["prompt"]="[?]"
+	["confirm"]="[✓]"
+)
+
+# ---------- MAKE DIRECTORY FOR INSTALLS ----------
+
+mkdir -p $INSTALL_DIR
+
+# ---------- HELPERS ----------
 
 # Function to check command existence
 check_cmd() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Detect OS type
-OS_TYPE=$(uname -s)
+print_status(){
+    SYMBOL=${SYMBOLS[$2]}
+    COLOR=${COLORS[$2]}
+    echo -e "$COLOR$SYMBOL $1$RESET"
+}
 
-# Install Bitwarden CLI if missing
+# ---------- CREATE SSH_SCRIPT_HOME ----------
+
+if ! grep -q "SSH_SCRIPT_HOME" "$HOME_VAR/.zshrc"; then
+    echo "export SSH_SCRIPT_HOME=\"$REPO_DIR\"" >> "$HOME_VAR/.zshrc"
+    print_status "Added SSH_SCRIPT_HOME to ~/.zshrc" "success"
+else
+    print_status "SSH_SCRIPT_HOME already set to $SSH_SCRIPT_HOME" "confirm"
+fi
+
+
+# ---------- INSTALL WRAPPER SCRIPTS TO INSTALL_DIR----------
+
+print_status "Installing wrapper scripts to $INSTALL_DIR..." "info"
+for script in $(grep -rl "^# ARGCOMPLETE_SCRIPT" "$WRAPPER_SCRIPT_DIRECTORY"/*); do
+    if [[ -f "$script" ]]; then
+	BASENAME=$(basename "$script")
+        cp "$script" "$INSTALL_DIR/"
+        chmod +x "$INSTALL_DIR/$BASENAME"
+	print_status "    Installed $BASENAME" "success"
+    else
+	echo "$script"
+	echo "$BASENAME"
+        print_status "$BASENAME not found in $WRAPPER_SCRIPT_DIRECTORY" "error"
+    fi
+done
+
+# ---------- ADD INSTALL_DIR TO PATH ----------
+
+if ! grep -q "export PATH=\"$INSTALL_DIR:\$PATH\"" "$HOME_VAR/.zshrc"; then
+    # export for this session
+    export PATH="$INSTALL_DIR:$PATH"
+    # add to .zshrc for future sessions
+    echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$HOME_VAR/.zshrc"
+    print_status "Added $INSTALL_DIR to PATH in ~/.zshrc" "success"
+fi
+
+# ---------- INSTALL PYTHON-ARGCOMPLETE ----------
+
+if ! check_cmd register-python-argcomplete; then
+    print_status "Installing Python dependency: python-argcomplete..." "info"
+    apt install --upgrade python3-argcomplete
+else
+    print_status "Python depenency python-argcomplete already installed" "confirm"
+fi
+
+# ---------- ENABLE GLOBAL ARGCOMPLETE ----------
+
+if check_cmd activate-global-python-argcomplete; then
+    # Candidate files for argcomplete
+    COMPLETION_FILES=("$HOME_VAR/.bash_completion" "$HOME_VAR/.bash_completion.d/python-argcomplete" "$HOME_VAR/.bash_completion.d/_python-argcomplete")
+
+    COMPLETION_FILE=""
+    for f in "${COMPLETION_FILES[@]}"; do
+        if [ -f "$f" ]; then
+            COMPLETION_FILE="$f"
+            break
+        fi
+    done
+
+    if [ -z "$COMPLETION_FILE" ]; then
+        print_status "Unknown completion file. Please source manually or restart your shell after setup." "error"
+    else
+        if ! grep -q "Begin added by argcomplete" "$COMPLETION_FILE"; then
+            print_status "Enabling global argcomplete..." "info"
+            activate-global-python-argcomplete --user
+            source "$COMPLETION_FILE"
+	    print_status "Enabled global argcomplete" "success"
+        else
+            print_status "Global argcomplete already enabled" "confirm"
+        fi
+    fi
+else
+    print_status "argcomplete not found. Please install it manually." "error"
+fi
+
+# ---------- REGISTER AUTOCOMPLETE FOR ARGCOMPLETE SCRIPTS ----------
+
+# Register autocomplete for all scripts within WRAPPER_SCRIPT_DIRECTORY with the ARGCOMPLETE_SCRIPT tag
+if check_cmd register-python-argcomplete; then
+    for f in $(grep -rl "^# ARGCOMPLETE_SCRIPT" "$WRAPPER_SCRIPT_DIRECTORY"/*); do
+        eval "$(register-python-argcomplete "$(basename "$f")")"
+
+        # Add to ~/.zshrc if it isn't there already
+	if ! grep -q "register-python-argcomplete $(basename "$f")" "$HOME_VAR/.zshrc"; then
+            echo "eval \"\$(register-python-argcomplete $(basename "$f"))\"" >> "$HOME_VAR/.zshrc"
+            print_status "register-python-argcomplete for $(basename "$f") set up in ~/.zshrc" "success"
+        else
+	    print_status "register-python-argcomplete for $(basename "$f") already set up in ~/.zshrc" "confirm"
+        fi
+    done
+fi
+
+# ---------- INSTALL PYTHON-DOTENV ----------
+
+OS_TYPE=$(uname -s)
+if ! check_cmd python-dotenv; then
+    print_status "Installing Python dependency: python-dotenv..." "info"
+    apt install --upgrade python3-dotenv
+else
+    print_status "Python depenency python-dotenv already installed" "confirm"
+fi
+
+# ---------- ENSURE CORRECT ENV PERMISSIONS ----------
+
+print_status "Setting $ENVPATH permissions to 600" "info"
+chmod 600 "$ENVPATH"
+print_status "chmod 600 $ENVPATH" "success"
+    
+# ---------- SOURCE ENV ----------
+
+source $ENVPATH
+print_status "Sourced ENV file $ENVPATH" "success"
+
+# ---------- INSTALL BITWARDEN CLI ----------
+
 if ! check_cmd bw; then
-    echo "[*] Bitwarden CLI (bw) not found. Installing..."
+    print_status "Bitwarden CLI (bw) not found. Installing..." "info"
     if [[ "$OS_TYPE" == "Linux" ]]; then
         # Check for package manager
         if check_cmd apt; then
             sudo apt update && sudo apt install -y snapd
             sudo snap install bw
+            # Add /snap/bin to PATH if needed
+            if ! grep -q 'export PATH=$PATH:/snap/bin' "$HOME_VAR/.zshrc"; then
+              print_status "Adding /snap/bin to PATH..." "info"
+              echo 'export PATH=$PATH:/snap/bin' >> "$HOME_VAR/.zshrc" 
+              print_status "Added /snap/bin to PATH" "success"
+            else
+              print_status "/snap/bin already added to PATH" "confirm"
+            fi
         elif check_cmd dnf; then
-            echo "[!] bw is not available via dnf/yum. Please install manually from:"
+            print_status "bw is not available via dnf/yum. Please install manually from:" "error"
             echo "    https://bitwarden.com/help/cli/"
         elif check_cmd yum; then
-            echo "[!] bw is not available via dnf/yum. Please install manually from:"
+            print_status "bw is not available via dnf/yum. Please install manually from:" "error"
             echo "    https://bitwarden.com/help/cli/"
         else
-            echo "[!] Unknown Linux distribution. Install Bitwarden CLI manually from:"
+            print_status "Unknown Linux distribution. Install Bitwarden CLI manually from:" "error"
             echo "    https://bitwarden.com/help/cli/"
         fi
+
+        source "$HOME_VAR/.zshrc"
+
     elif [[ "$OS_TYPE" == "Darwin" ]]; then
         if check_cmd brew; then
             brew install bitwarden-cli
         else
-            echo "[!] Homebrew not found. Install it from https://brew.sh/ then run:"
+            print_status "Homebrew not found. Install it from https://brew.sh/ then run:" "error"
             echo "    brew install bitwarden-cli"
         fi
     else
-        echo "[!] Unsupported OS. Please install Bitwarden CLI manually from:"
+        print_status "Unsupported OS. Please install Bitwarden CLI manually from:" "error"
         echo "    https://bitwarden.com/help/cli/"
     fi
 else
-    echo "[*] Bitwarden CLI already installed."
+    print_status "Bitwarden CLI already installed." "confirm"
 fi
 
-# Install sshpass if missing
-if ! check_cmd sshpass; then
-    echo "[*] sshpass not found. Installing..."
+# ---------- SET BW_DOMAIN ----------
+
+if [ -z "$BW_DOMAIN" ]; then
+	print_status "BW_DOMAIN is not set in .env" "error"
+	exit 1
+fi
+# Add https:// if BW_DOMAIN does not start with http:// or https://
+if [[ "$BW_DOMAIN" =~ ^https?:// ]]; then
+	SERVER_URL="$BW_DOMAIN"
+else
+	SERVER_URL="https://$BW_DOMAIN"
+fi
+
+# ---------- CONFIGURE BITWARDEN SERVER TO BW_DOMAIN ----------
+
+# before configuring server, check if we are logged in to Bitwarden. 
+# If we are, log out.
+print_status "Checking Bitwarden authentication status..." "info"
+if ! bw status --raw 2>/dev/null | grep -q '"status":"unauthenticated"'; then
+    bw logout 2>/dev/null 2>&1
+    print_status "Logged out of Bitwarden" "success"
+else
+    print_status "Already logged out of Bitwarden" "confirm"
+fi
+
+print_status "Configuring Bitwarden server to $SERVER_URL" "info"
+if bw config server "$SERVER_URL" >/dev/null 2>&1; then
+    
+    CONFIGURED_URL=$(bw config server 2>/dev/null)
+    if [ "$CONFIGURED_URL" = "$SERVER_URL" ]; then
+        print_status "Bitwarden server configured to $CONFIGURED_URL" "success"
+    else
+        print_status "Bitwarden server configuration mismatch (expected $SERVER_URL, got $CONFIGURED_URL)" "error"
+    fi
+else
+    print_status "Failed to configure Bitwarden server. Is bw installed?" "error"
+fi
+
+# ---------- INSTALL EXPECT ----------
+
+if ! check_cmd expect; then
+    print_status "expect not found. Installing..." "info"
     if [[ "$OS_TYPE" == "Linux" ]]; then
         if check_cmd apt; then
-            sudo apt update && sudo apt install -y sshpass
+            sudo apt update && sudo apt install -y expect
+	elif check_cmd yum; then
+            sudo yum install -y expect
         elif check_cmd dnf; then
-            sudo dnf install -y sshpass
-        elif check_cmd yum; then
-            sudo yum install -y sshpass
-        else
-            echo "[!] Unknown Linux distribution. Install sshpass manually."
+	    sudo dnf install -y expect
+	else
+	    print_status "Unknown Linux distribution. Install expect manually." "error"
         fi
     elif [[ "$OS_TYPE" == "Darwin" ]]; then
         if check_cmd brew; then
-            brew install hudochenkov/sshpass/sshpass
+            brew install expect
         else
-            echo "[!] Homebrew not found. Install it from https://brew.sh/ then run:"
-            echo "    brew install hudochenkov/sshpass/sshpass"
+            print_status "Homebrew not found. Install it from https://brew.sh/ then run:" "error"
+            echo "    brew install expect"
         fi
     else
-        echo "[!] Unsupported OS. Please install sshpass manually."
+        print_status "Unsupported OS. Please install expect manually." "error"
     fi
 else
-    echo "[*] sshpass already installed."
+    print_status "expect already installed." "confirm"
 fi
 
-echo "[*] All dependencies installed successfully."
+
+print_status "All dependencies installed successfully." "confirm"
+
