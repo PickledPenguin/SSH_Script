@@ -1,5 +1,7 @@
 server_data.json
 server_data/
+!server_data/
+!server_data/servers.example.json
 .env
 
 __pycache__/
