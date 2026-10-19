@@ -12,7 +12,6 @@ ZSHRC="$HOME_VAR/.zshrc"
 if [[ -L "$ZSHRC" || ( -e "$ZSHRC" && ! -w "$ZSHRC" ) ]]; then
     ZSHRC="$HOME_VAR/.zshrc.local"
 fi
-touch "$ZSHRC"
 INSTALL_DIR="$HOME_VAR/.local/bin"
 # Current repo directory
 REPO_DIR="$(pwd)"
@@ -55,10 +54,6 @@ SYMBOLS=(
 	["confirm"]="[✓]"
 )
 
-# ---------- MAKE DIRECTORY FOR INSTALLS ----------
-
-mkdir -p $INSTALL_DIR
-
 # ---------- HELPERS ----------
 
 # Function to check command existence
@@ -71,6 +66,45 @@ print_status(){
     COLOR=${COLORS[$2]}
     echo -e "$COLOR$SYMBOL $1$RESET"
 }
+
+# Ask a yes/no question with the same prompt style and defaults as the
+# Python prompt_yes_no helper in python_files/utils.py.
+prompt_yes_no() {
+    local question="$1"
+    local default="${2:-no}"
+    local suffix="[y/N]"
+    local answer
+
+    if [[ "$default" == "yes" ]]; then
+        suffix="[Y/n]"
+    fi
+
+    while true; do
+        echo -ne "${COLORS[prompt]}${SYMBOLS[prompt]} $question $suffix $RESET"
+        read -r answer
+        answer="${answer,,}"
+        if [[ -z "$answer" ]]; then
+            answer="$default"
+        fi
+        case "$answer" in
+            y|yes) return 0 ;;
+            n|no) return 1 ;;
+            *) print_status "Please respond with yes or no (y/n)." "prompt" ;;
+        esac
+    done
+}
+
+if [[ "$EUID" -eq 0 ]]; then
+    print_status "Running as root installs into root's home ($HOME_VAR), not your user's home. This script calls sudo itself where needed and should normally be run without sudo." "error"
+    if ! prompt_yes_no "Continue anyway?"; then
+        exit 1
+    fi
+fi
+
+# ---------- MAKE DIRECTORY FOR INSTALLS ----------
+
+mkdir -p "$INSTALL_DIR"
+touch "$ZSHRC"
 
 print_status "Using $ZSHRC for shell configuration" "info"
 if [[ "$ZSHRC" == "$HOME_VAR/.zshrc.local" ]]; then
@@ -117,7 +151,7 @@ fi
 
 if ! check_cmd register-python-argcomplete; then
     print_status "Installing Python dependency: python-argcomplete..." "info"
-    apt install --upgrade python3-argcomplete
+    sudo apt install -y --upgrade python3-argcomplete
 else
     print_status "Python depenency python-argcomplete already installed" "confirm"
 fi
@@ -172,14 +206,26 @@ fi
 # ---------- INSTALL PYTHON-DOTENV ----------
 
 OS_TYPE=$(uname -s)
-if ! check_cmd python-dotenv; then
+if ! python3 -c 'import dotenv' >/dev/null 2>&1; then
     print_status "Installing Python dependency: python-dotenv..." "info"
-    apt install --upgrade python3-dotenv
+    sudo apt install -y --upgrade python3-dotenv
 else
     print_status "Python depenency python-dotenv already installed" "confirm"
 fi
 
 # ---------- ENSURE CORRECT ENV PERMISSIONS ----------
+
+if [[ ! -f "$ENVPATH" ]]; then
+    cp "$REPO_DIR/.env.example" "$ENVPATH"
+    chmod 600 "$ENVPATH"
+    print_status "Created $ENVPATH from .env.example. Fill it in and run setup again." "error"
+    exit 1
+fi
+
+if [[ ! -f "$REPO_DIR/server_data/servers.json" ]]; then
+    cp "$REPO_DIR/server_data/servers.example.json" "$REPO_DIR/server_data/servers.json"
+    print_status "Created server_data/servers.json from its example template." "info"
+fi
 
 print_status "Setting $ENVPATH permissions to 600" "info"
 chmod 600 "$ENVPATH"
