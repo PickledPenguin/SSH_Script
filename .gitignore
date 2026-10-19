@@ -2,3 +2,4 @@ server_data.json
 server_data/
 .env
 
+__pycache__/
